@@ -1,0 +1,11 @@
+public/
+benchmark_grid/
+methods_diagrams/
+logs/
+deposit/
+/recall_table.csv
+/discard_table.csv
+/edge_clean.csv
+__pycache__/
+*.pyc
+.Rhistory

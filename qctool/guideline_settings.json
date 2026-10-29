@@ -1,0 +1,74 @@
+{
+ "generated": "2026-10-27 15:31",
+ "depth_cut_umi_per_bin": 100,
+ "classes": [
+  {
+   "label": "< 45 \u00b5m",
+   "min_um": 0,
+   "max_um": 45,
+   "hi": {
+    "bin": 8,
+    "k": 192,
+    "prov": false
+   },
+   "lo": {
+    "bin": 16,
+    "k": 48,
+    "prov": false
+   }
+  },
+  {
+   "label": "45\u2013130 \u00b5m",
+   "min_um": 45,
+   "max_um": 130,
+   "hi": {
+    "bin": 8,
+    "k": 768,
+    "prov": false
+   },
+   "lo": {
+    "bin": 32,
+    "k": 48,
+    "prov": false
+   }
+  },
+  {
+   "label": "130\u2013360 \u00b5m",
+   "min_um": 130,
+   "max_um": 360,
+   "hi": {
+    "bin": 64,
+    "k": 48,
+    "prov": false
+   },
+   "lo": {
+    "bin": 64,
+    "k": 48,
+    "prov": false
+   }
+  },
+  {
+   "label": "> 360 \u00b5m",
+   "min_um": 360,
+   "max_um": null,
+   "hi": {
+    "bin": 128,
+    "k": 48,
+    "prov": false
+   },
+   "lo": {
+    "bin": 128,
+    "k": 48,
+    "prov": false
+   }
+  }
+ ],
+ "mad": {
+  "hi": 8,
+  "lo": 32
+ },
+ "spatialartifacts": {
+  "hi": 8,
+  "lo": 16
+ }
+}

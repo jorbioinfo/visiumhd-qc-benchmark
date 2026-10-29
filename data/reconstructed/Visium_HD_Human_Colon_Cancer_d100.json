@@ -1,0 +1,23 @@
+{
+ "src": "/src",
+ "n_regions": 25,
+ "keep_p": 0.01,
+ "mito_target_frac": 0.25,
+ "mito_odds_ratio": null,
+ "seed": 1,
+ "out": "/work/benchmark_grid/Visium_HD_Human_Colon_Cancer_d100",
+ "target_umi_per_bin": 100.0,
+ "diameters": [
+  32,
+  64,
+  256
+ ],
+ "kinds": [
+  "mito",
+  "dropout"
+ ],
+ "with_clean": true,
+ "kind_label": "dropout01",
+ "location": "interior",
+ "reconstructed": "The run's own record of this call was overwritten by a later injection into the same run. These are the arguments of the call that built the run, from the grid script that built the pilot runs (2026-09-18), with the injector's defaults; its clean and dropout01 conditions are the ones on disk, and its mito conditions were later replaced under the relative rule (injection_params_mito_relative_core.json). Checked by 136_rebuild_check.py, which reproduced those conditions exactly."
+}
