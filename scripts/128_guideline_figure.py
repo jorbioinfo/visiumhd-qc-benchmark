@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import importlib.util, json, math, os, sys
+import glob, importlib.util, json, math, os, sys
 import numpy as np, pandas as pd
 
 WK = os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -81,6 +81,32 @@ def load():
     S = pd.concat(rows, ignore_index=True)
     S["kind"] = S["kind"].astype(str)
     return S
+
+def method_failures(arm, big):
+    out = {}
+    for d in glob.glob(os.path.join(GRID, f"{P.PREFIX}*_d*")):
+        tag = os.path.basename(d)
+        try:
+            dep = int(tag.rsplit("_d", 1)[1])
+        except ValueError:
+            continue
+        if not os.path.isdir(d):
+            continue
+        conds = [os.path.basename(c.rstrip("/")) for c in glob.glob(os.path.join(d, "*/"))
+                 if os.path.isdir(os.path.join(c, "square_008um"))]
+        rdir = os.path.join(d, "results", arm)
+        have = set(os.listdir(rdir)) if os.path.isdir(rdir) else set()
+        f, n = out.get(dep, (0, 0))
+        for c in conds:
+            if tag in big and c.endswith("_512um"):
+                continue
+            n += 1
+            log = os.path.join(d, "results", "logs", f"{arm}__{c}.log")
+            if f"{c}.txt" not in have and os.path.exists(log) and "ERROR" in open(log, errors="replace").read():
+                f += 1
+        out[dep] = (f, n)
+    return dict(sorted(out.items(), reverse=True))
+
 
 def numbers(S):
     G = {"generated": f"{pd.Timestamp.now(tz='Asia/Taipei'):%Y-%m-%d %H:%M}",
@@ -229,12 +255,12 @@ def numbers(S):
     G["section_wide"] = sw
 
     G["miqc_failed"] = {}
-    try:
-        snap = json.load(open(os.path.join(WK, "logs/progress_snapshot.json")))
-        for e in snap.get("methodErrors", []):
-            G["miqc_failed"][e["arm"]] = {d: (f / n if n else None) for d, (f, n) in e["byDepth"].items()}
-    except (OSError, KeyError, ValueError):
-        pass
+    big = os.path.join(WK, "data", "big512_runs.txt")
+    big = {ln.strip() for ln in open(big) if ln.strip()} if os.path.exists(big) else set()
+    for arm in ("30_miqc_8um", "31_miqc_64um"):
+        fails = method_failures(arm, big)
+        if any(f for f, _ in fails.values()):
+            G["miqc_failed"][arm] = {str(d): (f / n if n else None) for d, (f, n) in fails.items()}
     return G
 
 def rules(G):

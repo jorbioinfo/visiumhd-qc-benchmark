@@ -10,15 +10,14 @@
 - [The QC advisor CLI](#the-qc-advisor-cli)
   - [If the damage size is unknown](#if-the-damage-size-is-unknown)
   - [Example report](#example-report)
-- [The QC tool](#the-qc-tool)
 - [Citation](#citation)
 - [Licence](#licence)
 
 Code for the paper *How should sub-cellular spatial transcriptomics be quality controlled? A guideline from a benchmark with injected damage*. It builds a benchmark with known damage on 40 public Visium HD sections,
 runs each quality control (QC) method on it, scores every method against the damage, and
 regenerates every figure, table and number in the paper. It also holds the implementation
-of aggregation and deconvolution (A&D) and a command-line tool that applies the paper's QC
-procedure to a new section.
+of the aggregation-and-projection (A&P) approach and a command-line advisor that recommends the paper's
+QC settings for a new section.
 
 The benchmark data (injection records, ground truth, every arm's verdict and the scored
 tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
@@ -36,7 +35,7 @@ tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
 3. **QC arms.** Each arm is one QC method at one bin size: MAD thresholds (scuttle),
    SpotSweeper, SpatialArtifacts, miQC, a fixed UMI cutoff and no filter. An arm on bins
    coarser than 8 µm runs on summed bins and projects each verdict back to the 8 µm bins
-   inside (A&D), so every arm reports on the same 8 µm bins.
+   inside (A&P), so every arm reports on the same 8 µm bins.
 4. **Scoring.** Recall, cost on the uninjected condition, F1, a marker check of what was
    removed, and the agreement of downstream clusterings between depths.
 
@@ -45,12 +44,12 @@ tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
 | Path | Content |
 |---|---|
 | `docker/Dockerfile` | The environment every step runs in |
-| `R/ad.R` | A&D: the projection of coarse verdicts back to 8 µm bins |
+| `R/ad.R` | A&P: the projection of coarse verdicts back to 8 µm bins |
 | `scripts/` | Every step of the benchmark, numbered as they were written |
 | `scripts/run_section.sh` | Build and score one run as the Methods describe |
 | `scripts/rebuild_run.sh` | Replay one run's injection records and compare with its matrices |
 | `scripts/100_make_final.sh` | Regenerate every figure, table and number from a complete grid |
-| `qctool/` | The command-line QC tool and advisor (the procedure of Fig. 6) |
+| `qctool/advisor/` | The command-line QC advisor (the procedure of Fig. 6) |
 | `data/` | The panel's sources, which runs carry the subset conditions, and the reconstructed injection records (see `data/README.md`) |
 | `checks/` | Minimal examples of two package issues the benchmark works around |
 
@@ -172,32 +171,6 @@ This report uses a public kidney section at approximately 12 UMIs per 8 µm bin,
 64 µm and tissue-edge damage supplied as example inputs.
 
 ![Example Visium HD QC Advisor report](examples/qc-advisor-report.png)
-
----
-
-## The QC tool
-
-`qctool/vhdqc.py` runs QC on a Space Ranger section. It writes the flagged bins, a QC map
-and a report. The tool reads its settings from `qctool/guideline_settings.json` and runs
-the same QC functions as the benchmark.
-
-```sh
-docker run --rm -v "$PWD":/work -v /path/to/outs/binned_outputs:/in:ro vhd-qc-benchmark \
-  /opt/pyenv/bin/python /work/qctool/vhdqc.py --input /in --out /work/qc_out --damage-um 200
-```
-
-**Parameters**
-
-- `--input DIRECTORY` **(required)**. Space Ranger's `outs/binned_outputs` directory, which contains `square_008um`. Use the mounted path `/in` in the example above.
-- `--out DIRECTORY` **(required)**. Directory for the QC results. `/work/qc_out` in the container corresponds to `qc_out/` in the repository.
-- `--damage-um DIAMETER` **(optional)**. Estimated damage diameter in µm. Omit it when the size is unknown or no damage is visible. The tool then runs a section-wide MAD threshold.
-- `--edge` **(optional)**. With a damage diameter, adds SpatialArtifacts for suspected edge damage. This requires the 8 µm raw feature-barcode matrix.
-- `--settings FILE` **(optional)**. Path to a guideline settings JSON file. Defaults to the bundled `qctool/guideline_settings.json`.
-- `--keep-views` **(optional)**. Keeps the intermediate coarse-bin files in the output directory.
-- `-h`, `--help` **(optional)**. Prints usage and exits.
-
-`qctool/tests/test_identity.sh` checks that the tool's verdicts equal the benchmark arms'
-on a deposited run.
 
 ---
 

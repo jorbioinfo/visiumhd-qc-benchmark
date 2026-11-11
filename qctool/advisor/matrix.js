@@ -1,8 +1,6 @@
 async function readLines(chunks, visit) {
   const decoder = new TextDecoder("utf-8", {fatal: true});
   let tail = "";
-  // ponytail: keep only one partial line and one decoded chunk. A larger metadata
-  // line would need a streaming comment skipper instead of raising this limit.
   const maxLine = 1024 * 1024;
   for await (const chunk of chunks) {
     const text = tail + decoder.decode(chunk, {stream: true});

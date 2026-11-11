@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, glob, os, re
 
 import panel as P
@@ -13,6 +14,7 @@ INK, INK2, MUTED, BASE = "#0b0b0b", "#52514e", "#898781", "#c3c2b7"
 HUE = "#2a78d6"
 CAT = ["#2a78d6", "#eb6834", "#1baf7a"]
 
+
 def style():
     plt.rcParams.update({
         "pdf.fonttype": 42, "ps.fonttype": 42, "savefig.dpi": 600,
@@ -22,7 +24,9 @@ def style():
         "axes.edgecolor": BASE, "axes.linewidth": 0.6,
         "figure.facecolor": "white", "axes.facecolor": "white"})
 
+
 HUE2 = "#eb6834"
+
 
 def mito_baseline(src):
     rows = []
@@ -47,9 +51,11 @@ def mito_baseline(src):
               flush=True)
     return order_s4(pd.DataFrame(rows))
 
+
 def order_s4(df):
     rank = {c: i for i, c in enumerate(P.CHEMS)}
     return df.assign(_r=df.chem.map(rank)).sort_values(["_r", "median"]).drop(columns="_r")
+
 
 def fig_s4(df, outdir):
     fig, ax = plt.subplots(figsize=(5.2, 0.17 * len(df) + 1.4))
@@ -77,23 +83,25 @@ def fig_s4(df, outdir):
         fig.savefig(os.path.join(outdir, f"figS4_mito_baseline.{e}"), bbox_inches="tight")
     plt.close(fig)
 
+
 ARM_LABEL = {
-    "02_mad_8um": "MAD, native 8 µm", "08_mad_16um": "MAD + A&D, 16 µm",
-    "09_mad_32um": "MAD + A&D, 32 µm", "10_mad_64um": "MAD + A&D, 64 µm",
-    "41_mad_128um": "MAD + A&D, 128 µm",
-    "35_mad_64um_excludepartial": "MAD + A&D, 64 µm, partly covered bins left out",
-    "24_spotsweeper_8um_k48": "SpotSweeper, native 8 µm", "25_spotsweeper_16um_k48": "SpotSweeper + A&D, 16 µm",
-    "26_spotsweeper_32um_k48": "SpotSweeper + A&D, 32 µm", "27_spotsweeper_64um_k48": "SpotSweeper + A&D, 64 µm",
-    "28_spotsweeper_128um_k48": "SpotSweeper + A&D, 128 µm",
+    "02_mad_8um": "MAD, native 8 µm", "08_mad_16um": "MAD + A&P, 16 µm",
+    "09_mad_32um": "MAD + A&P, 32 µm", "10_mad_64um": "MAD + A&P, 64 µm",
+    "41_mad_128um": "MAD + A&P, 128 µm",
+    "35_mad_64um_excludepartial": "MAD + A&P, 64 µm, partly covered bins left out",
+    "24_spotsweeper_8um_k48": "SpotSweeper, native 8 µm", "25_spotsweeper_16um_k48": "SpotSweeper + A&P, 16 µm",
+    "26_spotsweeper_32um_k48": "SpotSweeper + A&P, 32 µm", "27_spotsweeper_64um_k48": "SpotSweeper + A&P, 64 µm",
+    "28_spotsweeper_128um_k48": "SpotSweeper + A&P, 128 µm",
     "44_spotsweeper_8um_k192": "SpotSweeper, native 8 µm, 192 neighbours",
     "45_spotsweeper_8um_k768": "SpotSweeper, native 8 µm, 768 neighbours",
     "46_spotsweeper_8um_k3072": "SpotSweeper, native 8 µm, 3072 neighbours",
     "03_spotsweeper_8um": "SpotSweeper, native 8 µm, 36 neighbours",
-    "30_miqc_8um": "miQC, native 8 µm", "31_miqc_64um": "miQC + A&D, 64 µm",
+    "30_miqc_8um": "miQC, native 8 µm", "31_miqc_64um": "miQC + A&P, 64 µm",
     "19_spatialartifacts_8um": "SpatialArtifacts, native 8 µm",
-    "20_spatialartifacts_16um": "SpatialArtifacts + A&D, 16 µm",
-    "32_fixedumi_8um": "Fixed count, native 8 µm", "33_fixedumi_64um": "Fixed count + A&D, 64 µm",
+    "20_spatialartifacts_16um": "SpatialArtifacts + A&P, 16 µm",
+    "32_fixedumi_8um": "Fixed count, native 8 µm", "33_fixedumi_64um": "Fixed count + A&P, 64 µm",
 }
+
 
 def fig_s6(grid, outdir):
     rows = []
@@ -133,6 +141,7 @@ def fig_s6(grid, outdir):
     plt.close(fig)
     print("S6 totals:", {k: int(counts[k].sum()) for k in order})
 
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default="/work/public")
@@ -154,6 +163,7 @@ def main():
         df.to_csv(csv, index=False)
     fig_s4(df, a.outdir)
     print("wrote figS4_mito_baseline")
+
 
 if __name__ == "__main__":
     main()

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import glob, json, math, os
 import numpy as np, pandas as pd
 from scipy import stats
@@ -9,8 +10,10 @@ OUT = os.path.join(GRID, "figures")
 SS, MAD = P.SPOTSWEEPER, P.MAD
 lines = []
 
+
 def say(s=""):
     lines.append(s)
+
 
 def sign_p(k, n):
     if n == 0:
@@ -18,11 +21,14 @@ def sign_p(k, n):
     k = max(k, n - k)
     return min(1.0, 2 * sum(math.comb(n, i) for i in range(k, n + 1)) / 2 ** n)
 
+
 def pct(x):
     return f"{100 * x:.1f}%"
 
+
 def med(s):
     return float(np.median(s)) if len(s) else float("nan")
+
 
 def md_table(df, index=True):
     cols = ([df.index.name or ""] if index else []) + [str(c) for c in df.columns]
@@ -30,6 +36,7 @@ def md_table(df, index=True):
     for i, r in df.iterrows():
         out.append("| " + " | ".join(([str(i)] if index else []) + [str(v) for v in r]) + " |")
     return "\n".join(out)
+
 
 def panel_table():
     rows = []
@@ -70,6 +77,7 @@ def panel_table():
     t.to_csv(os.path.join(OUT, "table1_panel.csv"), index=False)
     return t
 
+
 t1 = panel_table()
 say("# Manuscript numbers")
 say()
@@ -102,13 +110,16 @@ edge_runs = S[S.kind.str.endswith("edge")].groupby(["section", "depth"]).size()
 say(f"- runs with edge conditions so far: {len(edge_runs)} of {len(cells)}")
 say()
 
+
 def recall(arm, kind, diam, depth, chem):
     s = S[(S.arm == arm) & (S.kind == kind) & (S.diameter_um == diam) & (S.depth == depth) & (S.chem == chem)]
     return s.set_index("section").recall.dropna()
 
+
 def disc(arm, depth, chem):
     s = S[(S.arm == arm) & (S.condition == "clean") & (S.depth == depth) & (S.chem == chem)]
     return s.set_index("section").discard_frac.dropna()
+
 
 KIND = {"dropout01": "signal loss", "mito": "mito elevation"}
 
@@ -127,12 +138,31 @@ for ch in P.CHEMS:
     for dep in (100, 12):
         for k, kl in KIND.items():
             for dm in (64, 256):
+                a, b = recall(SS[8], k, 32, dep, ch), recall(SS[8], k, dm, dep, ch)
+                j = a.index.intersection(b.index)
+                if not len(j):
+                    continue
+                dn = int((b[j] < a[j]).sum()); up = int((b[j] > a[j]).sum())
+                say(f"- native 8 um, {dm} um against 32 um LQRs, {ch} d{dep} {kl}: lower in {dn}, higher in {up} "
+                    f"of {len(j)} (sign p = {sign_p(dn, up + dn):.3g})")
+for ch in P.CHEMS:
+    for k, kl in KIND.items():
+        a, b = recall(SS[8], k, 32, 100, ch), recall(SS[8], k, 32, 12, ch)
+        j = a.index.intersection(b.index)
+        dn = int((b[j] < a[j]).sum()); up = int((b[j] > a[j]).sum())
+        say(f"- native 8 um, 32 um LQRs, 12 against 100 UMIs/bin, {ch} {kl}: {pct(med(b[j]))} against {pct(med(a[j]))}; "
+            f"lower in {dn}, higher in {up} of {len(j)} (sign p = {sign_p(dn, up + dn):.3g})")
+say()
+for ch in P.CHEMS:
+    for dep in (100, 12):
+        for k, kl in KIND.items():
+            for dm in (64, 256):
                 a, b = recall(SS[8], k, dm, dep, ch), recall(SS[64], k, dm, dep, ch)
                 j = a.index.intersection(b.index)
                 if not len(j):
                     continue
                 up = int((b[j] > a[j]).sum()); dn = int((b[j] < a[j]).sum())
-                say(f"- A&D 64 um vs native, {ch} d{dep} {kl} {dm} um: median {pct(med(a[j]))} -> {pct(med(b[j]))}; "
+                say(f"- A&P 64 um vs native, {ch} d{dep} {kl} {dm} um: median {pct(med(a[j]))} -> {pct(med(b[j]))}; "
                     f"higher in {up}/{up + dn} (sign p = {sign_p(up, up + dn):.3g}); n = {len(j)}")
 say()
 BINS = (8, 16, 32, 64)
@@ -179,7 +209,7 @@ for tool, arms in (("neighbourhood", SS), ("section-wide", MAD)):
                 + ", ".join(f"{a}/{b}: {n}" for (a, b), n in pairs.items()))
 say()
 
-say("## Widened neighbourhood against A&D (probe, sections with every setting)")
+say("## Widened neighbourhood against A&P (probe, sections with every setting)")
 cand = {**{f"b{b}": SS[b] for b in (8, 16, 32, 64)}, **{f"k{48 * (b // 8) ** 2}": a for b, a in P.WIDENED.items()}}
 for dm in (32, 64, 256):
     for dep in (100, 12):
@@ -213,7 +243,7 @@ say(f"- SpatialArtifacts, highest median recall of any edge mitochondrial LQR: {
     f"({mx[1]} um bins, {mx[2]} um LQRs, d{mx[3]})")
 say()
 
-say("## Very large LQRs (512 um), SpotSweeper on 64 and 128 um bins with A&D")
+say("## Very large LQRs (512 um), SpotSweeper on 64 and 128 um bins with A&P")
 SS128 = "28_spotsweeper_128um_k48"
 vl_secs = S[S.diameter_um == 512].groupby("chem").section.nunique()
 say(f"- sections holding 512 um LQRs: {int(vl_secs.sum())} ({', '.join(f'{c}: {n}' for c, n in vl_secs.items())}); "
@@ -294,8 +324,36 @@ for ch in P.CHEMS:
         say()
 
 say("### miQC")
+def method_failures(arm, big):
+    out = {}
+    for d in glob.glob(os.path.join(GRID, f"{P.PREFIX}*_d*")):
+        tag = os.path.basename(d)
+        try:
+            dep = int(tag.rsplit("_d", 1)[1])
+        except ValueError:
+            continue
+        if not os.path.isdir(d):
+            continue
+        conds = [os.path.basename(c.rstrip("/")) for c in glob.glob(os.path.join(d, "*/"))
+                 if os.path.isdir(os.path.join(c, "square_008um"))]
+        rdir = os.path.join(d, "results", arm)
+        have = set(os.listdir(rdir)) if os.path.isdir(rdir) else set()
+        f, n = out.get(dep, (0, 0))
+        for c in conds:
+            if tag in big and c.endswith("_512um"):
+                continue
+            n += 1
+            log = os.path.join(d, "results", "logs", f"{arm}__{c}.log")
+            if f"{c}.txt" not in have and os.path.exists(log) and "ERROR" in open(log, errors="replace").read():
+                f += 1
+        out[dep] = (f, n)
+    return dict(sorted(out.items(), reverse=True))
+
+
+BIG512 = os.path.join("data", "big512_runs.txt")
+big512 = {ln.strip() for ln in open(BIG512) if ln.strip()} if os.path.exists(BIG512) else set()
 for arm in ("30_miqc_8um", "31_miqc_64um"):
-    fails = P.method_failures(GRID, arm, P.big512_runs("."))
+    fails = method_failures(arm, big512)
     if any(f for f, _ in fails.values()):
         say(f"- {arm} failed verdicts by depth (failed/owed): " +
             ", ".join(f"d{d} {f}/{n} ({pct(f / n) if n else '-'})" for d, (f, n) in fails.items()))

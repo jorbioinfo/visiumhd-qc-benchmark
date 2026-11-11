@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, glob, os, re
 import numpy as np, pandas as pd
 from scipy import stats
@@ -14,9 +15,11 @@ TOOLS = {
     "SpatialArtifacts": ("19_spatialartifacts_8um", "20_spatialartifacts_16um"),
 }
 SMALL_STEP = {"SpatialArtifacts": "16 µm"}
+LABEL = {"scuttle MAD": "MAD threshold"}
 C_ALONE, C_DECONV = "#2a78d6", "#eb6834"
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#d8d7d2"
 DEPTHS = (100, 50, 25, 12)
+
 
 def style():
     plt.rcParams.update({
@@ -28,6 +31,7 @@ def style():
         "xtick.major.width": 0.6, "ytick.major.width": 0.6,
         "figure.facecolor": "white", "axes.facecolor": "white"})
 
+
 def load_grid(root):
     scores, markers = {d: {} for d in DEPTHS}, {d: {} for d in DEPTHS}
     for ds, dep, cell in P.cells(root, DEPTHS):
@@ -37,9 +41,11 @@ def load_grid(root):
             markers[dep][ds] = pd.read_csv(mk)
     return scores, markers
 
+
 def discard_pct(df, arm):
     v = df.loc[(df.arm == arm) & (df.condition == "clean"), "discard_frac"]
     return v.iloc[0] * 100 if len(v) else np.nan
+
 
 def retention(mdf, arm):
     if mdf is None:
@@ -47,11 +53,13 @@ def retention(mdf, arm):
     r = mdf.loc[mdf.arm == arm, "ratio_matched"]
     return r.iloc[0] if len(r) else np.nan
 
+
 def match_scale(mdf, arm):
     if mdf is None or "match_scale_um" not in mdf.columns:
         return np.nan
     r = mdf.loc[mdf.arm == arm, "match_scale_um"]
     return r.iloc[0] if len(r) else np.nan
+
 
 def holm(ps):
     ps = np.asarray(ps, float)
@@ -64,15 +72,18 @@ def holm(ps):
         out[i] = run
     return out
 
+
 def stars(p):
     if not np.isfinite(p):
         return ""
     return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
 
+
 def sign_p(d):
     d = np.asarray(d, float)
     d = d[np.isfinite(d) & ~np.isclose(d, 0)]
     return stats.binomtest(int((d > 0).sum()), len(d), 0.5).pvalue if len(d) else np.nan
+
 
 def collect(getter, table, dep, names, slot):
     ds = sorted(table.get(dep, {}))
@@ -80,6 +91,7 @@ def collect(getter, table, dep, names, slot):
         return np.empty((0, len(names))), []
     return np.array([[getter(table[dep][d], TOOLS[t][slot]) for t in names]
                      for d in ds], float), ds
+
 
 def draw_bars(ax, arr, x, off, w, col, floor=0.0):
     if not arr.size:
@@ -95,7 +107,9 @@ def draw_bars(ax, arr, x, off, w, col, floor=0.0):
                    edgecolors=INK2, linewidths=0.3, zorder=6)
     return np.nan_to_num(np.nanmax(arr, axis=0))
 
-KEY_NATIVE, KEY_AD = "native 8 µm bins", "A&D, 64 µm bins (16 µm for SpatialArtifacts)"
+
+KEY_NATIVE, KEY_AD = "native 8 µm bins", "A&P, 64 µm bins (16 µm for SpatialArtifacts)"
+
 
 def figure(scores, markers, out, key=True):
     names = list(TOOLS)
@@ -122,7 +136,7 @@ def figure(scores, markers, out, key=True):
                                    np.nanmax(hi_d[:, i], initial=0)) * 1.05, s_,
                             ha="center", va="bottom", fontsize=7, color=INK, zorder=8)
         if j == 0:
-            ax.set_ylabel("Tissue removed (%)", fontweight="bold", labelpad=4)
+            ax.set_ylabel("False-positive rate (%)", fontweight="bold", labelpad=4)
         ax.set_title(f"{dep} UMIs per bin", pad=5, color=INK)
 
         ax = axs[1, j]
@@ -159,7 +173,7 @@ def figure(scores, markers, out, key=True):
             ax.set_ylabel("Marker retention ratio\n(log$_2$ scale)", fontweight="bold",
                           labelpad=4)
         ax.set_xticks(x)
-        ax.set_xticklabels(names, rotation=45, ha="right", rotation_mode="anchor",
+        ax.set_xticklabels([LABEL.get(n, n) for n in names], rotation=45, ha="right", rotation_mode="anchor",
                            fontsize=6.2)
         axs[0, j].set_xticks(x); axs[0, j].set_xticklabels([])
         for a_ in (axs[0, j], axs[1, j]):
@@ -183,6 +197,7 @@ def figure(scores, markers, out, key=True):
         print("wrote", f"{out}.{ext}")
     plt.close(fig)
     pd.DataFrame(rows).to_csv(f"{out}_stats.csv", index=False)
+
 
 def depth_trend(scores, out):
     names = list(TOOLS)
@@ -220,14 +235,14 @@ def depth_trend(scores, out):
                             textcoords="offset points", va="center", fontsize=7,
                             color=col, fontweight="bold")
             if r == 0:
-                ax.set_title(t, pad=5, color=INK)
+                ax.set_title(LABEL.get(t, t), pad=5, color=INK)
             ax.set_xticks(x)
             ax.set_xticklabels([str(d) for d in DEPTHS])
             ax.set_xlim(-0.35, len(DEPTHS) - 0.35)
             if r == len(P.CHEMS) - 1:
                 ax.set_xlabel("UMIs per bin", fontsize=6.8, color=INK2)
             ax.yaxis.grid(True, color=GRID, lw=.5, zorder=0); ax.set_axisbelow(True)
-        axs[r, 0].set_ylabel("Undamaged tissue\nremoved (%)")
+        axs[r, 0].set_ylabel("False-positive\nrate (%)")
         axs[r, -1].text(1.05, 0.5, P.CHEM_LABEL[ch], transform=axs[r, -1].transAxes,
                         rotation=270, ha="left", va="center", fontsize=7.5,
                         fontweight="bold", color=INK)
@@ -240,6 +255,7 @@ def depth_trend(scores, out):
         fig.savefig(f"{out}.{ext}", bbox_inches="tight")
         print("wrote", f"{out}.{ext}")
     plt.close(fig)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -255,6 +271,7 @@ def main():
         figure(keep(scores), keep(markers),
                os.path.join(a.outdir, f"fig2_discarded_tissue_{ch}"), key=(ch == P.CHEMS[-1]))
     depth_trend(scores, os.path.join(a.outdir, "fig3_depth_trend"))
+
 
 if __name__ == "__main__":
     main()

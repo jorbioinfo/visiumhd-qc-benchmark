@@ -1,4 +1,3 @@
-// Settings from Figure 6. Probe-based medians from Supplementary Table S9 and guideline_numbers.json.
 const benchmark = {
   settings: {
     "generated": "2026-11-09 10:46",
