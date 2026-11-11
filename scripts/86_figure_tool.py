@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, os
 import numpy as np, pandas as pd
 from scipy import stats
@@ -13,16 +14,19 @@ DEPTHS = ((100, "100 UMIs per bin"), (12, "12 UMIs per bin"))
 TOOLS = {
     "MAD": {
         "o": ("02_mad_8um", "native 8 µm bins"),
-        "*": ("10_mad_64um", "A&D, 64 µm bins"),
+        "*": ("10_mad_64um", "A&P, 64 µm bins"),
         "^": ("35_mad_64um_excludepartial",
-              "A&D, 64 µm bins, partly covered bins left out")},
+              "A&P, 64 µm bins, partly covered bins left out")},
     "miQC": {
         "o": ("30_miqc_8um", "native 8 µm bins"),
-        "*": ("31_miqc_64um", "A&D, 64 µm bins")},
+        "*": ("31_miqc_64um", "A&P, 64 µm bins")},
     "SpotSweeper": {
         "o": (P.SPOTSWEEPER[8], "native 8 µm bins"),
-        "*": (P.SPOTSWEEPER[64], "A&D, 64 µm bins"),
+        "*": (P.SPOTSWEEPER[64], "A&P, 64 µm bins"),
         "s": (P.WIDENED[64], "native 8 µm bins, 3072 neighbours")},
+    "SpatialArtifacts": {
+        "o": (P.SPATIALARTIFACTS[8], "native 8 µm bins"),
+        "*": (P.SPATIALARTIFACTS[16], "A&P, 16 µm bins")},
 }
 
 MARK = {"o": ("o", 5.4, False), "*": ("o", 6.0, True),
@@ -122,7 +126,7 @@ def main():
                     ns.setdefault((k, ch, dep), set()).add(v)
             axs[i, 0].set_ylabel(f"{ctitle}\nRecall (%)", fontsize=7.5, color=INK,
                                  fontweight="bold")
-        fig.supxlabel("Undamaged tissue removed (%, log scale)", y=0.075, fontsize=7.5,
+        fig.supxlabel("False-positive rate (%, log scale)", y=0.075, fontsize=7.5,
                       color=INK)
         hs, ls = [], []
         for key, (_arm, lab) in arms.items():

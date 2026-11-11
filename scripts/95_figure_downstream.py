@@ -1,17 +1,33 @@
+#!/usr/bin/env python3
 import argparse, os
 import numpy as np, pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import transforms
 
 import panel as P
 import figstyle as FS
 
 REF = ("01_no_qc", "No filter", "#6b7280")
-ARMS = [("02_mad_8um", "MAD\nnative 8 µm", "#2a78d6"),
-        ("10_mad_64um", "MAD + A&D\n64 µm bins", "#eb6834"),
-        (P.SPOTSWEEPER[8], "SpotSweeper\nnative 8 µm", "#1baf7a")]
+ARMS = [("02_mad_8um", "native\n8 µm", "#2a78d6"),
+        ("10_mad_64um", "+ A&P\n64 µm", "#eb6834"),
+        (P.SPOTSWEEPER[8], "native\n8 µm", "#2a78d6"),
+        (P.SPOTSWEEPER[64], "+ A&P\n64 µm", "#eb6834"),
+        (P.SPATIALARTIFACTS[8], "native\n8 µm", "#2a78d6"),
+        (P.SPATIALARTIFACTS[16], "+ A&P\n16 µm", "#eb6834")]
+GROUPS = [("MAD", 0, 1), ("SpotSweeper", 2, 3), ("SpatialArtifacts", 4, 5)]
 W = 7.2
+
+def group_labels(ax, fig, off):
+    base = transforms.blended_transform_factory(ax.transData, ax.transAxes)
+    line = base + transforms.ScaledTranslation(0, -25 / 72, fig.dpi_scale_trans)
+    text = base + transforms.ScaledTranslation(0, -27 / 72, fig.dpi_scale_trans)
+    for name, i0, i1 in GROUPS:
+        ax.plot([off + i0 - 0.34, off + i1 + 0.34], [0, 0], transform=line,
+                color="#555555", lw=0.6, clip_on=False)
+        ax.text(off + (i0 + i1) / 2, 0, name, transform=text, ha="center", va="top",
+                fontsize=6.8)
 
 def spread(i, n):
     return np.full(n, i) + (np.linspace(-0.15, 0.15, n) if n > 1 else [0.0])
@@ -37,7 +53,8 @@ def main():
     plt.rcParams.update({"font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.3,
                          "ytick.labelsize": 6.5, "legend.fontsize": 6.8,
                          "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42})
-    fig, ax = plt.subplots(len(P.CHEMS), 2, figsize=(W, 5.4), sharey="col")
+    fig, ax = plt.subplots(len(P.CHEMS), 2, figsize=(W, 5.6), sharey="col",
+                           gridspec_kw={"width_ratios": [len(cols), len(ARMS)]})
     out, ns = [], {}
     for r, ch in enumerate(P.CHEMS):
         dc = d[d.chem == ch]
@@ -68,11 +85,14 @@ def main():
         last = r == len(P.CHEMS) - 1
         A.set_xticklabels([c[1] for c in cols] if last else [])
         B.set_xticklabels([c[1] for c in ARMS] if last else [])
+        if last:
+            group_labels(A, fig, 1)
+            group_labels(B, fig, 0)
         t = ad.copy(); t.insert(0, "chem", ch); out.append(t)
     ax[-1, 0].scatter([], [], marker="D", s=16, facecolor="none", edgecolor="#333333",
                       linewidth=0.9, label="same survivors, second seed (median)")
     ax[-1, 0].legend(frameon=False, loc="upper center",
-                     bbox_to_anchor=(0.5, -0.2), handletextpad=0.4)
+                     bbox_to_anchor=(0.5, -0.27), handletextpad=0.4)
     for x in ax.ravel():
         x.grid(axis="y", lw=0.5, color="#dddddd", zorder=0)
         x.set_axisbelow(True)

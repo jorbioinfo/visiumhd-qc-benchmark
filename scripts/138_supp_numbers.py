@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import glob, importlib.util, json, math, os
 import numpy as np, pandas as pd
 
@@ -40,6 +41,10 @@ lv = m6.match_scale_um.value_counts(dropna=False)
 say(f"- matching level reached, six main arms, all runs and both chemistries: "
     + ", ".join(f"{('not reported' if pd.isna(k) else f'{int(k)} um')}: {v}" for k, v in lv.items())
     + f" of {len(m6)} arm-by-run estimates")
+nr = m6[m6.match_scale_um.notna() & m6.ratio_matched.isna()]
+say(f"- matched but no ratio, kept-bin marker fraction zero in every matched unit: {len(nr)} of "
+    f"{int(m6.match_scale_um.notna().sum())}; by depth "
+    + ", ".join(f"{d}: {v}" for d, v in nr.depth.value_counts().sort_index(ascending=False).items()))
 say()
 say("## S2. What the removed tissue was (probe-based)")
 p = m6[m6.chem == "probe"]
@@ -51,6 +56,21 @@ for arm, nm in MAIN.items():
         f"{r.min():.2f} to {r.max():.2f}; at 100 UMIs/bin unmatched {d100.ratio_naive.median():.2f} -> matched "
         f"{d100.ratio_matched.median():.2f} (n = {d100.ratio_matched.notna().sum()}); median share removed "
         f"{s.pct_flagged.median():.1f}%; sign p = {sign_p(int((r < 1).sum()), int((r != 1).sum())):.2g}")
+w = p[p.arm.isin(["24_spotsweeper_8um_k48", "27_spotsweeper_64um_k48"])].pivot_table(
+    index=["sec", "depth"], columns="arm", values="ratio_matched").dropna()
+for arm in ("24_spotsweeper_8um_k48", "27_spotsweeper_64um_k48"):
+    r = w[arm]
+    say(f"- {MAIN[arm]}, runs with a ratio on both bin sizes: median {r.median():.2f}, below 1 in "
+        f"{int((r < 1).sum())}/{len(r)}; sign p = {sign_p(int((r < 1).sum()), int((r != 1).sum())):.2g}")
+MORE = {"30_miqc_8um": "miQC 8 um", "31_miqc_64um": "miQC 64 um", "32_fixedumi_8um": "fixed cutoff 8 um",
+        "33_fixedumi_64um": "fixed cutoff 64 um"}
+q = M[(M.chem == "probe") & M.arm.isin(MORE)]
+for arm, nm in MORE.items():
+    s = q[q.arm == arm]
+    r = s.ratio_matched.dropna()
+    say(f"- {nm}: matched ratio median {r.median():.2f}, below 1 in {int((r < 1).sum())}/{len(r)} runs "
+        f"({len(s)} with the arm); median share removed {s.pct_flagged.median():.1f}%; sign p = "
+        f"{sign_p(int((r < 1).sum()), int((r != 1).sum())):.2g}")
 t = p[p.arm == "02_mad_8um"].groupby("sec").ratio_matched.median().dropna().sort_values()
 say(f"- MAD 8 um matched ratio by section (median over depths): {t.iloc[0]:.2f} ({t.index[0]}) to "
     f"{t.iloc[-1]:.2f} ({t.index[-1]}), n = {len(t)}")
@@ -134,8 +154,30 @@ say()
 St = json.load(open(os.path.join(OUT, "guideline_settings.json")))
 NB, VL, WC = G0["neighbourhood"], G0["very_large"], G0["widened_check"]
 LQR = {0: 32, 1: 64, 2: 256, 3: 512}
-rows = ["| Damage size | UMIs/bin | Setting | Signal loss | Mito. elevation | Sections |",
-        "|---|---|---|---:|---:|---:|"]
+CLEAN = {}
+for dep in (100, 12):
+    v = []
+    for f in glob.glob(os.path.join(WK, "benchmark_grid", f"Visium_HD_*_d{dep}", "scored", "scores.csv")):
+        sec = f.split(os.sep)[-3][len("Visium_HD_"):].rsplit("_d", 1)[0]
+        if chem.get(sec) != "probe":
+            continue
+        s = pd.read_csv(f, usecols=["arm", "condition", "discard_frac"])
+        s = s[s.condition == "clean"]
+        s["section"] = sec
+        v.append(s)
+    CLEAN[dep] = pd.concat(v)
+WIDE = {192: "44_spotsweeper_8um_k192", 768: "45_spotsweeper_8um_k768", 3072: "46_spotsweeper_8um_k3072"}
+AP = {8: "24_spotsweeper_8um_k48", 16: "25_spotsweeper_16um_k48", 32: "26_spotsweeper_32um_k48",
+      64: "27_spotsweeper_64um_k48", 128: "28_spotsweeper_128um_k48"}
+
+def fpr(arm, dep):
+    x = CLEAN[dep][CLEAN[dep].arm == arm].discard_frac
+    return x.median(), len(x)
+
+UN = pd.read_csv(os.path.join(OUT, "union_region.csv"))
+UN = UN[UN.chem == "probe"]
+rows = ["| Damage size | UMIs/bin | Setting | Signal loss | Mito. elevation | Uninjected tissue removed | Sections |",
+        "|---|---|---|---:|---:|---:|---:|"]
 for i, c in enumerate(St["classes"]):
     dm = LQR[i]
     for tier, dep in (("hi", 100), ("lo", 12)):
@@ -149,10 +191,30 @@ for i, c in enumerate(St["classes"]):
         else:
             vals = [NB[f"probe|{k}|{dm}|{dep}"]["median"][str(st["bin"])] for k in ("dropout01", "mito")]
             n = NB[f"probe|dropout01|{dm}|{dep}"]["n"]
-        setting = f"{st['bin']} µm bins" + ("" if st["bin"] == 8 else " + A&D") + f", {st['k']} neighbours"
+        setting = f"{st['bin']} µm bins" + ("" if st["bin"] == 8 else " + A&P") + f", {st['k']} neighbours"
         size = f"{c['label']} ({dm} µm LQRs)" if tier == "hi" else ""
+        f0, nf = fpr(WIDE[st["k"]] if st["bin"] == 8 and st["k"] > 48 else AP[st["bin"]], dep)
         rows.append(f"| {size} | {'≥ 100' if tier == 'hi' else '12'} | "
-                    f"{setting} | {100 * vals[0]:.1f}% | {100 * vals[1]:.1f}% | {n} |")
+                    f"{setting} | {100 * vals[0]:.1f}% | {100 * vals[1]:.1f}% | {100 * f0:.1f}% | {n} |")
+        if nf != n:
+            say(f"- S6 table: {setting} at {dep} UMIs/bin, false-positive rate over {nf} sections, recall over {n}")
+        sa = St.get("spatialartifacts", {})
+        if tier in sa and dm >= sa.get("min_um", 0) and dm in (64, 256):
+            b = sa[tier]
+            a = "19_spatialartifacts_8um" if b == 8 else "20_spatialartifacts_16um"
+            ev = [G0["edge"][f"{a}|{k}|{dm}|{dep}"] for k in ("dropout01", "mito")]
+            f1, _ = fpr(a, dep)
+            rows.append(f"|  | {'≥ 100' if tier == 'hi' else '12'} | also SpatialArtifacts, {b} µm bins"
+                        + ("" if b == 8 else " + A&P") + f" | {100 * ev[0]['median']:.1f}% | "
+                        f"{100 * ev[1]['median']:.1f}% | {100 * f1:.1f}% | {ev[0]['n']} |")
+            g = UN[(UN.dm == dm) & (UN.depth == dep)]
+            u = [g[g.cond == f"{k}_{dm}um"].un_v for k in ("dropout01", "mito")]
+            uc = g[g.cond == "clean"].un_v
+            if len(u[0]) == ev[0]["n"]:
+                rows.append(f"|  | {'≥ 100' if tier == 'hi' else '12'} | either test flags the bin"
+                            f" | {100 * u[0].median():.1f}% | {100 * u[1].median():.1f}% | {100 * uc.median():.1f}% | {len(u[0])} |")
+            else:
+                say(f"- S6 table: union {dm} um at {dep} UMIs/bin over {len(u[0])} sections, region test over {ev[0]['n']}; row left out")
 open(os.path.join(OUT, "guideline_table.md"), "w").write("\n".join(rows) + "\n")
 say("## S6: guideline_table.md written")
 say()
@@ -196,7 +258,7 @@ def optimum(sec, dm):
 mad8 = D[(D.tool == "section-wide") & (D.bin_um == 8)].copy()
 mad8["cost"] = mad8.disc / (mad8.disc + mad8.keep)
 rows = ["| Tissue | Section | Chemistry, preparation | Space Ranger | Optimum bin for 32 / 64 / 256 µm LQRs (µm) "
-        "| MAD cost on 8 µm bins, 100 → 12 UMIs/bin |", "|---|---|---|---|---|---|"]
+        "| MAD false-positive rate on 8 µm bins, 100 → 12 UMIs/bin |", "|---|---|---|---|---|---|"]
 for tissue, secs in PAIRS:
     for i, sec in enumerate(secs):
         c = mad8[mad8.dataset == sec].set_index("depth").cost
@@ -225,7 +287,7 @@ for key, e in G["widened_check"].items():
 open(os.path.join(OUT, "tableS1.md"), "w").write("\n".join(rows) + "\n")
 say(f"## Table S1 written, {len(rows) - 2} rows")
 
-src = os.path.join(WK, "data", "sources.tsv")
+src = os.path.join(WK, "deposit", "out", "sources.tsv")
 if os.path.exists(src):
     S = pd.read_csv(src, sep="\t")
     rows = ["| Section | Provider | Source | Licence |", "|---|---|---|---|"]

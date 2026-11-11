@@ -1,10 +1,13 @@
+#!/usr/bin/env python3
 import os
 import pandas as pd
 
 WK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(WK, "benchmark_grid", "figures")
+OUT = os.environ.get("FIGDIR", os.path.join(WK, "benchmark_grid", "figures"))
 DEPTHS = (100, 50, 25, 12)
-TESTS = (("SpotSweeper", "Neighbourhood (SpotSweeper)"), ("scuttle MAD", "Section-wide (MAD)"))
+TESTS = (("SpotSweeper", "Neighbourhood (SpotSweeper)"), ("scuttle MAD", "Section-wide (MAD)"),
+         ("SpatialArtifacts", "Region (SpatialArtifacts)"))
+SKIP = {("SpatialArtifacts", "mito")}
 KINDS = (("dropout01", "signal loss"), ("mito", "mito. elevation"))
 
 d = pd.concat([pd.read_csv(os.path.join(OUT, f"fig5_binsize_d{x}_stats.csv")) for x in DEPTHS])
@@ -15,6 +18,8 @@ def table(chem):
     gain, ns = 0.0, {}
     for tool, tlab in TESTS:
         for kind, klab in KINDS:
+            if (tool, kind) in SKIP:
+                continue
             for i, les in enumerate(sorted(d.lesion_um.unique())):
                 cells = []
                 for dep in DEPTHS:

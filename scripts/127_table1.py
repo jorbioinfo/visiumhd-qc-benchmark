@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import csv, os
 
 WK = os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,7 +42,7 @@ SPACERANGER = {
 }
 SOURCE = {"Human_Colon_Cancer_P1": "[3]", "Human_Colon_Cancer_P5": "[3]",
           "Human_Colon_Normal_P3": "[3]", "Human_Colon_Normal_P5": "[3]",
-          **{f"SixCancer_{t}": "[16]" for t in ("Bladder_Cancer", "Colorectal_Cancer", "Lung_Cancer",
+          **{f"SixCancer_{t}": "[17]" for t in ("Bladder_Cancer", "Colorectal_Cancer", "Lung_Cancer",
                                                "Lymphoma", "Ovarian_Cancer")}}
 
 def label(sec):

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, glob, os, re
 import numpy as np, pandas as pd
 import matplotlib
@@ -36,43 +37,44 @@ def main():
         "axes.edgecolor": BASE, "axes.linewidth": 0.6,
         "figure.facecolor": "white", "axes.facecolor": "white"})
     d = load(a.grid)
-    fig, axs = plt.subplots(1, 2, figsize=(6.0, 2.9), sharey=True)
-    ns, chems = {}, set()
-    for ax, (dep, title) in zip(axs, DEPTHS):
-        x = np.arange(len(DIAM)); w = 0.36
-        for off, arm, col, mk, lab in ((-w / 2 - 0.01, AGG, C_AGG, M_AGG, "A&D, 64 µm bins"),
-                                       (+w / 2 + 0.01, WIDE, C_WIDE, M_WIDE,
-                                        "native 8 µm bins, 3072 neighbours")):
-            both = None
-            for L in DIAM:
-                secs = set(d[(d.depth == dep) & (d.arm == arm) & (d["kind"] == a.kind)
-                             & (d.diameter_um == L)].sec)
-                both = secs if both is None else both & secs
-            other = AGG if arm == WIDE else WIDE
-            for L in DIAM:
-                both &= set(d[(d.depth == dep) & (d.arm == other) & (d["kind"] == a.kind)
-                              & (d.diameter_um == L)].sec)
-            ns[(dep, lab)] = len(both)
-            chems.update(P.chemistry(x) for x in both)
-            vals = []
-            for i, L in enumerate(DIAM):
-                sub = d[(d.depth == dep) & (d.arm == arm) & (d["kind"] == a.kind)
-                        & (d.diameter_um == L) & (d.sec.isin(both))]
-                v = sub.recall.to_numpy() * 100
-                vals.append(np.median(v) if len(v) else np.nan)
-                ax.plot(np.full(len(v), x[i] + off), v, mk, ms=3.0, mfc="white",
-                        mec=col, mew=0.9, zorder=5)
-            ax.bar(x + off, vals, width=w, color=col, label=lab, zorder=3)
-        ax.set_xticks(x); ax.set_xticklabels([f"{int(v)} µm" for v in DIAM])
-        ax.set_ylim(0, 100)
-        ax.tick_params(colors=INK2)
-    axs[0].set_ylabel("Recall (%)", color=INK)
-    fig.text(0.55, 0.055, "LQR diameter", ha="center", fontsize=7.5, color=INK)
-    h, l = axs[0].get_legend_handles_labels()
+    d["chem"] = d.sec.map(P.chemistry)
+    fig, axs = plt.subplots(len(P.CHEMS), 2, figsize=(6.0, 5.0), sharey=True, sharex=True)
+    ns = {}
+    for r, ch in enumerate(P.CHEMS):
+        dc = d[d.chem == ch]
+        for ax, (dep, title) in zip(axs[r], DEPTHS):
+            x = np.arange(len(DIAM)); w = 0.36
+            for off, arm, col, mk, lab in ((-w / 2 - 0.01, AGG, C_AGG, M_AGG, "A&P, 64 µm bins"),
+                                           (+w / 2 + 0.01, WIDE, C_WIDE, M_WIDE,
+                                            "native 8 µm bins, 3072 neighbours")):
+                both = None
+                for L in DIAM:
+                    for am in (AGG, WIDE):
+                        secs = set(dc[(dc.depth == dep) & (dc.arm == am) & (dc["kind"] == a.kind)
+                                      & (dc.diameter_um == L)].sec)
+                        both = secs if both is None else both & secs
+                ns[(ch, dep, lab)] = len(both)
+                vals = []
+                for i, L in enumerate(DIAM):
+                    sub = dc[(dc.depth == dep) & (dc.arm == arm) & (dc["kind"] == a.kind)
+                             & (dc.diameter_um == L) & (dc.sec.isin(both))]
+                    v = sub.recall.to_numpy() * 100
+                    vals.append(np.median(v) if len(v) else np.nan)
+                    ax.plot(np.full(len(v), x[i] + off), v, mk, ms=3.0, mfc="white",
+                            mec=col, mew=0.9, zorder=5)
+                ax.bar(x + off, vals, width=w, color=col, label=lab if r == 0 else None, zorder=3)
+            ax.set_xticks(x); ax.set_xticklabels([f"{int(v)} µm" for v in DIAM])
+            ax.set_ylim(0, 100)
+            ax.tick_params(colors=INK2)
+        axs[r, 0].set_ylabel("Recall (%)", color=INK)
+        axs[r, 1].text(1.04, 0.5, P.CHEM_LABEL[ch], transform=axs[r, 1].transAxes, rotation=270,
+                       ha="left", va="center", fontsize=7.5, fontweight="bold", color=INK)
+    fig.text(0.53, 0.075, "LQR diameter", ha="center", fontsize=7.5, color=INK)
+    h, l = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=2, frameon=False,
-               bbox_to_anchor=(0.55, -0.10))
-    fig.tight_layout(rect=(0.02, 0.14, 1, 1))
-    for ax, letter in zip(axs, "ab"):
+               bbox_to_anchor=(0.53, -0.01))
+    fig.tight_layout(rect=(0.02, 0.1, 0.97, 1))
+    for ax, letter in zip(axs[0], "ab"):
         FS.letter_axes(fig, ax, letter)
     for e in ("pdf", "svg", "png"):
         fig.savefig(os.path.join(a.outdir, f"fig7_routes.{e}"), bbox_inches="tight")

@@ -58,6 +58,7 @@ SPOTSWEEPER_PACKAGE_DEFAULT_8UM = "03_spotsweeper_8um"
 WIDENED = {16: "44_spotsweeper_8um_k192", 32: "45_spotsweeper_8um_k768",
            64: "46_spotsweeper_8um_k3072"}
 MAD = {8: "02_mad_8um", 16: "08_mad_16um", 32: "09_mad_32um", 64: "10_mad_64um"}
+SPATIALARTIFACTS = {8: "19_spatialartifacts_8um", 16: "20_spatialartifacts_16um"}
 
 def short(name):
     return name[len(PREFIX):] if name.startswith(PREFIX) else name
@@ -86,33 +87,3 @@ def scores(cell):
     if os.path.exists(core) and os.path.getmtime(os.path.join(cell, "scored", "scores.csv")) < os.path.getmtime(core):
         stale |= kind.str.startswith("mito")
     return f[~stale].reset_index(drop=True)
-
-def big512_runs(root):
-    p = os.path.join(root, "data", "big512_runs.txt")
-    return {ln.strip() for ln in open(p) if ln.strip()} if os.path.exists(p) else set()
-
-def method_failures(grid, arm, big=()):
-    import glob
-    out = {}
-    for d in glob.glob(os.path.join(grid, f"{PREFIX}*_d*")):
-        tag = os.path.basename(d)
-        try:
-            dep = int(tag.rsplit("_d", 1)[1])
-        except ValueError:
-            continue
-        if not os.path.isdir(d):
-            continue
-        conds = [os.path.basename(c.rstrip("/")) for c in glob.glob(os.path.join(d, "*/"))
-                 if os.path.isdir(os.path.join(c, "square_008um"))]
-        rdir = os.path.join(d, "results", arm)
-        have = set(os.listdir(rdir)) if os.path.isdir(rdir) else set()
-        f, n = out.get(dep, (0, 0))
-        for c in conds:
-            if tag in big and c.endswith("_512um"):
-                continue
-            n += 1
-            log = os.path.join(d, "results", "logs", f"{arm}__{c}.log")
-            if f"{c}.txt" not in have and os.path.exists(log) and "ERROR" in open(log, errors="replace").read():
-                f += 1
-        out[dep] = (f, n)
-    return dict(sorted(out.items(), reverse=True))

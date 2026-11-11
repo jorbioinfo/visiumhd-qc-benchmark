@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse, importlib.util, os, re
 import numpy as np, pandas as pd
 import matplotlib
@@ -16,13 +17,18 @@ def ds94():
         m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); _DS94.append(m)
     return _DS94[0]
 
-ARMS = [("01_no_qc", "No QC"),
+ARMS = [("01_no_qc", "No filter"),
         ("02_mad_8um", "MAD, native 8 µm"),
-        ("10_mad_64um", "A&D: MAD on 64 µm bins"),
-        ("24_spotsweeper_8um_k48", "Neighbourhood test\n(SpotSweeper, k = 48)")]
+        ("10_mad_64um", "MAD + A&P, 64 µm"),
+        ("24_spotsweeper_8um_k48", "SpotSweeper, native 8 µm"),
+        ("27_spotsweeper_64um_k48", "SpotSweeper + A&P, 64 µm"),
+        ("19_spatialartifacts_8um", "SpatialArtifacts, native 8 µm"),
+        ("20_spatialartifacts_16um", "SpatialArtifacts + A&P, 16 µm")]
 BC = re.compile(r"s_(\d+)um_(\d+)_(\d+)")
-ROW = {"01_no_qc": "No filter", "02_mad_8um": "MAD,\nnative 8 µm", "10_mad_64um": "MAD + A&D,\n64 µm bins",
-       "24_spotsweeper_8um_k48": "SpotSweeper,\nnative 8 µm"}
+ROW = {"01_no_qc": "No filter", "02_mad_8um": "MAD,\nnative 8 µm", "10_mad_64um": "MAD + A&P,\n64 µm bins",
+       "24_spotsweeper_8um_k48": "SpotSweeper,\nnative 8 µm", "27_spotsweeper_64um_k48": "SpotSweeper\n+ A&P, 64 µm bins",
+       "19_spatialartifacts_8um": "SpatialArtifacts,\nnative 8 µm",
+       "20_spatialartifacts_16um": "SpatialArtifacts\n+ A&P, 16 µm bins"}
 
 def square_of(barcodes, bin_um=32):
     step = bin_um // 8
@@ -129,7 +135,7 @@ def draw(section, df, rem, stats, allsq, out):
     nrow, asp = len(ARMS), R / C
     fig = plt.figure(figsize=(W, (4 * asp * nrow + 0.6) * W / 18.5))
     outer = fig.add_gridspec(1, 2, width_ratios=[3, 1.25], wspace=0.34,
-                             left=0.115, right=0.985, top=0.97, bottom=0.07)
+                             left=0.145, right=0.985, top=0.97, bottom=0.07)
     left = outer[0].subgridspec(nrow, 3, wspace=0.06, hspace=0.20)
     right = outer[1].subgridspec(2, 1, hspace=0.45)
     ax = np.array([[fig.add_subplot(left[k, j]) for j in range(3)] for k in range(nrow)])

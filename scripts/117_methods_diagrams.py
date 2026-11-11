@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import math
 import os
 
@@ -197,7 +198,7 @@ def overview():
     b.append(rect(56, 280, 328, 76, C["link_tint"], rx=6))
     b.append(rect(416, 280, 328, 76, C["accent_tint"], rx=6))
     b.append(text(68, 298, "Native", weight=700, node="qc"))
-    b.append(text(428, 298, "A&D", weight=700, node="qc"))
+    b.append(text(428, 298, "A&P", weight=700, node="qc"))
     nat = {(1, 1), (1, 2), (3, 3)}
     b += grid(156, 290, 5, 5, 8)
     b.append(mini_arrow(200, 236, 310, C["link"], "arrow-link"))
@@ -214,7 +215,7 @@ def overview():
     b += grid(648, 290, 4, 4, 10,
               lambda i, j: C["accent"] if i < 2 and j >= 2 else C["paper"])
     b.append(text(492, 346, "8 µm bins", color=C["muted"], anchor="middle", node="qc"))
-    b.append(text(580, 346, "coarse QC", color=C["muted"], anchor="middle", node="qc"))
+    b.append(text(580, 346, "large-bin QC", color=C["muted"], anchor="middle", node="qc"))
     b.append(text(668, 346, "8 µm verdict", color=C["muted"], anchor="middle", node="qc"))
 
     b += shell(40, 400, 720, 56, "", "store", "verdict")
@@ -238,7 +239,7 @@ def overview():
              f'stroke-dasharray="3,2"/>')
     for i, j in (inj - missed) | fp:
         b.append(cross(113 + 10 * j + 5, 524 + 10 * i + 5, 3))
-    b.append(text(148, 622, "recall and cost", color=C["muted"], anchor="middle", node="score"))
+    b.append(text(148, 622, "recall and false-positive rate", color=C["muted"], anchor="middle", node="score"))
 
     b += shell(292, 488, 216, 152, "Marker check", node="marker")
     b.append(rect(356, 548, 24, 30, C["paper"], C["muted"], 1))
@@ -268,18 +269,18 @@ def overview():
            "thinned to four common depths, and synthetic low-quality regions (LQRs) of three "
            "diameters are added once to the 8 µm counts of each run (one section at one "
            "depth). Every QC method is run natively on the 8 µm grid and through "
-           "aggregate-and-deconvolve (A&amp;D), which sums bins, runs the method on the coarse "
+           "aggregate-and-project (A&amp;P), which sums bins, runs the method on the large "
            "bins and projects its verdict back to 8 µm, so both routes return a verdict on the "
            "same 8 µm bins. The verdict is judged three ways: against the injected regions "
            "(recall and nominal false-positive rate), by the marker share of removed against "
-           "kept bins on undamaged tissue matched for tile and library size, and by the "
+           "kept bins on uninjected tissue matched for tile and library size, and by the "
            "adjusted Rand index (ARI) between clusterings of one section at 100 and 12 UMIs "
            "per bin. Sections are the unit of inference, and every test is made within one "
            "chemistry.")
     return page("methods-overview", "Materials and Methods · study design",
                 "From public sections to a section-level test",
                 "Workflow: public Visium HD sections are depth-controlled and given synthetic "
-                "damage, every QC method is run natively and through A&D onto the same 8 µm "
+                "damage, every QC method is run natively and through A&P onto the same 8 µm "
                 "bins, and the verdict is judged by scoring, a marker check and clustering "
                 "agreement before a section-level test.",
                 800, "\n".join(b), cap)
@@ -295,7 +296,7 @@ def routes():
     FOOT = {"native": "rgba(42,120,214,0.40)", "ad": "rgba(235,104,52,0.45)",
             "wide": "rgba(27,175,122,0.45)"}
     zones = (("Native", 40, C["link_tint"], "native", C["link"]),
-             ("A&D", 284, C["accent_tint"], "ad", C["accent"]),
+             ("A&P", 284, C["accent_tint"], "ad", C["accent"]),
              ("Widened", 528, GREEN_TINT, "wide", GREEN))
     for name, x, tint, _, _ in zones:
         b.append(rect(x, 104, 232, 336, tint, rx=8))
@@ -336,11 +337,11 @@ def routes():
     cap = ("<b>Three routes to the same 8 µm verdict, shown for SpotSweeper at the 16 µm "
            "step.</b> Each panel draws one bin (black) and the bins it is compared against, at "
            "the same physical scale. Natively, a bin is compared with its 48 nearest 8 µm "
-           "bins. A&amp;D sums the counts of 2 × 2 bins into 16 µm bins, compares each with its "
+           "bins. A&amp;P sums the counts of 2 × 2 bins into 16 µm bins, compares each with its "
            "48 nearest 16 µm bins, and projects the verdict back with "
-           "<code>barcode_based_deconvolve</code>, so the four 8 µm bins of a coarse bin share "
+           "<code>barcode_based_deconvolve</code>, so the four 8 µm bins of a large bin share "
            "one verdict. The widened arm stays on the 8 µm grid and compares each bin with its "
-           "192 nearest bins, the same area as 48 bins of 16 µm. A&amp;D and the widened arm "
+           "192 nearest bins, the same area as 48 bins of 16 µm. A&amp;P and the widened arm "
            "therefore look across the same area and differ only in whether counts are pooled "
            "before the test. The 32 and 64 µm steps scale the same way (768 and 3072 "
            "neighbours). The widened arms were run on a subset of sections, at the deepest and "
@@ -349,7 +350,7 @@ def routes():
                 "Aggregating counts versus widening the neighbourhood",
                 "Three routes from the injected 8 µm counts to a verdict on the same 8 µm bins, "
                 "drawn as the area each bin is compared against: 48 native bins, 48 summed "
-                "16 µm bins, or 192 native bins covering the same area as A&D.",
+                "16 µm bins, or 192 native bins covering the same area as A&P.",
                 544, "\n".join(b), cap)
 
 def lqr():
@@ -377,11 +378,11 @@ def lqr():
     tx = 248
     b.append(f'<circle cx="256" cy="92" r="7" fill="none" stroke="{C["ink"]}" stroke-width="1.2" '
              f'stroke-dasharray="3,2"/>')
-    b.append(text(272, 96, "circle, 32 µm across", color=C["muted"]))
+    b.append(text(272, 96, "circle, 32 µm in diameter", color=C["muted"]))
     b.append(f'<circle cx="256" cy="116" r="2" fill="{DMG}"/>')
     b.append(text(272, 120, "bin centre", color=C["muted"]))
     b.append(rect(250, 134, 12, 12, DMG_TINT, DMG, 1))
-    b.append(text(272, 144, "bin in the region", color=C["muted"]))
+    b.append(text(272, 144, "bin in the LQR", color=C["muted"]))
     for k, (dm, nb) in enumerate((("32 µm", "13 bins"), ("64 µm", "49 bins"),
                                   ("256 µm", "797 bins"))):
         b.append(text(tx, 196 + 18 * k, dm, weight=700))
@@ -451,7 +452,7 @@ def lqr():
     b.append(text(374, y0 + 65, "MT : other = 100 : 90", color=C["muted"]))
 
     b.append(mini_arrow(xs + 2, 510, ym))
-    b.append(text(520, t0, "3  Every bin in the region", weight=700))
+    b.append(text(520, t0, "3  Every bin in the LQR", weight=700))
 
     for k, mt in enumerate((2, 10, 18)):
         y = y0 + 16 * k
@@ -466,7 +467,7 @@ def lqr():
 
     mx, my = 40, 428 + DY
     cols = (("32 µm", 2), ("64 µm", 4), ("256 µm", 16))
-    b.append(text(mx + 152 + 100, my + 20, "region diameter", color=C["muted"], anchor="middle"))
+    b.append(text(mx + 152 + 100, my + 20, "LQR diameter", color=C["muted"], anchor="middle"))
     for k, (lab, _) in enumerate(cols):
         b.append(text(mx + 152 + 72 * k + 28, my + 40, lab, weight=700, anchor="middle"))
     for r, (lab, col) in enumerate((("Signal loss", DMG),
@@ -480,7 +481,7 @@ def lqr():
             b.append(f'<circle cx="{ccx}" cy="{yy + 18}" r="{rad}" fill="{DMG_TINT}" '
                      f'stroke="{col}" stroke-width="1"/>')
     yy = my + 56 + 88
-    b.append(text(mx, yy + 22, "No damage", weight=700))
+    b.append(text(mx, yy + 22, "Uninjected", weight=700))
     b.append(f'<rect x="{mx + 152}" y="{yy}" width="200" height="36" rx="4" fill="{C["paper"]}" '
              f'stroke="{C["rule_solid"]}" stroke-width="0.8"/>')
     b.append(text(mx + 252, yy + 22, "none", color=C["muted"], anchor="middle"))
@@ -536,7 +537,7 @@ def downstream():
 
     b.append(letter(40, 30, "a"))
     for cx, lab in ((88, "one section"), (216, "thin"), (336, "same QC arm"),
-                    (456, "pool to 32 µm"), (576, "Leiden clusters"), (716, "compare")):
+                    (456, "sum into 32 µm"), (576, "Leiden clusters"), (716, "compare")):
         b.append(text(cx, 64, lab, weight=700, anchor="middle"))
     b += [path([(120, 184), (140, 184), (140, 136), (188, 136)]),
           path([(120, 208), (156, 208), (156, 256), (188, 256)])]
@@ -548,7 +549,7 @@ def downstream():
     b.append(rect(56, 164, 64, 64, C["paper"], C["soft"], 1, rx=2))
     b.append(f'<path d="M 64 196 c 0 -18 22 -26 38 -18 c 12 6 12 26 -2 34 c -14 8 -36 4 -36 -16 z" '
              f'fill="{TISSUE}" stroke="{C["soft"]}" stroke-width="0.8"/>')
-    b.append(text(88, 246, "undamaged", color=C["muted"], anchor="middle"))
+    b.append(text(88, 246, "uninjected", color=C["muted"], anchor="middle"))
 
     for y, h in ((112, 48), (232, 6)):
         b.append(rect(204, y, 24, 48, C["paper"], C["rule_solid"], 0.8))
@@ -574,7 +575,7 @@ def downstream():
     b += cmap(552, 111)
     b += cmap(552, 231, {(2, 2), (3, 1), (4, 3)})
 
-    b.append(box(672, 168, 88, 56, "ARI", ["bin by bin"], "store", "ari"))
+    b.append(box(672, 160, 88, 72, "ARI", ["square", "by square"], "store", "ari"))
 
     b.append(letter(40, 340, "b"))
     b += cmap(56, 356)
@@ -593,10 +594,10 @@ def downstream():
     cap = ("<b>Downstream consistency.</b> One section without injected damage is thinned to "
            "100 and 12 UMIs per bin, so tissue, cells and bins are identical and only the "
            "library differs. The same QC arm is applied at each depth, the surviving 8 µm bins "
-           "are pooled into 32 µm bins and clustered (scanpy, 2,000 highly variable genes, 30 "
+           "are summed into 32 µm squares and clustered (scanpy, 2,000 highly variable genes, 30 "
            "principal components, 15 neighbours, Leiden resolution 1.0), and the two "
-           "clusterings are compared bin by bin with the adjusted Rand index (ARI) over the "
-           "32 µm bins present at both depths. Barcodes are shared, so nothing has to be "
+           "clusterings are compared square by square with the adjusted Rand index (ARI) over the "
+           "32 µm squares present at both depths. Barcodes are shared, so nothing has to be "
            "registered. The no-filter arm gives the agreement that depth alone allows, which a "
            "QC arm has to beat, and reclustering the same survivors with a new seed gives the "
            "floor below which a difference is the clustering algorithm's.")
@@ -694,7 +695,7 @@ def marker():
     b.append(mini_arrow(492, 532, 660))
 
     b.append("</g>")
-    cap = ("<b>Marker check.</b> On the undamaged condition of every run, the bins each QC arm "
+    cap = ("<b>Marker check.</b> On the uninjected condition of every run, the bins each QC arm "
            "removes are compared with the bins it keeps, following the marker validation of "
            "SpatialArtifacts with two changes, a panel taken from the data and a comparison "
            "matched for location and library size. (a) The marker panel is the 20 most "

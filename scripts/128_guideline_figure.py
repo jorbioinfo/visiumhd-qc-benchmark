@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
 import importlib.util, json, math, os, sys
 import numpy as np, pandas as pd
 
 WK = os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not os.path.isdir(WK):
+    WK = "/work"
 sys.path.insert(0, os.path.join(WK, "scripts"))
 import panel as P
 
@@ -27,8 +30,8 @@ COVERAGE_ARMS = {
     "04_spotsweeper_16um": "left out: 36-neighbour run of 25, superseded",
     "05_spotsweeper_32um": "left out: 36-neighbour run of 26, superseded",
     "06_spotsweeper_64um": "left out: 36-neighbour run of 27, superseded",
-    "19_spatialartifacts_8um": "edge outcome, at or above the depth cut",
-    "20_spatialartifacts_16um": "edge outcome, below the depth cut",
+    "19_spatialartifacts_8um": "region-test outcome, at or above the depth cut",
+    "20_spatialartifacts_16um": "region-test outcome, below the depth cut",
     "21_spotsweeper_8um_k144": "left out: widened from 36 neighbours, superseded by 44",
     "22_spotsweeper_8um_k576": "left out: widened from 36 neighbours, superseded by 45",
     "23_spotsweeper_8um_k2304": "left out: widened from 36 neighbours, superseded by 46",
@@ -53,7 +56,7 @@ COVERAGE_CONDITIONS = {
     "clean": "cost on undamaged tissue: the MAD bin and depth rules",
     **{f"{k}|{dm}": "SpotSweeper size outcomes" for k in KINDS for dm in LQRS},
     **{f"{k}|{VERY_LARGE}": "SpotSweeper size outcome for the largest class" for k in KINDS},
-    **{f"{k}edge|{dm}": "edge decision and outcome" for k in KINDS for dm in LQRS},
+    **{f"{k}edge|{dm}": "region-test outcome; edge check" for k in KINDS for dm in LQRS},
 }
 
 def audit(S):
@@ -193,7 +196,7 @@ def numbers(S):
     for a in ("19_spatialartifacts_8um", "20_spatialartifacts_16um", *SS.values()):
         for dm in LQRS:
             for dep in ENDS:
-                for k in ("dropout01edge", "mitoedge"):
+                for k in ("dropout01", "mito", "dropout01edge", "mitoedge"):
                     r = recall(a, k, dm, dep, "probe")
                     ed[f"{a}|{k}|{dm}|{dep}"] = dict(n=len(r), median=med(r))
     G["edge"] = ed
@@ -226,10 +229,12 @@ def numbers(S):
     G["section_wide"] = sw
 
     G["miqc_failed"] = {}
-    for arm in ("30_miqc_8um", "31_miqc_64um"):
-        fails = P.method_failures(GRID, arm, P.big512_runs(WK))
-        if any(f for f, _ in fails.values()):
-            G["miqc_failed"][arm] = {str(d): (f / n if n else None) for d, (f, n) in fails.items()}
+    try:
+        snap = json.load(open(os.path.join(WK, "logs/progress_snapshot.json")))
+        for e in snap.get("methodErrors", []):
+            G["miqc_failed"][e["arm"]] = {d: (f / n if n else None) for d, (f, n) in e["byDepth"].items()}
+    except (OSError, KeyError, ValueError):
+        pass
     return G
 
 def rules(G):
@@ -245,6 +250,23 @@ def rules(G):
             break
     return safe, floor
 
+def mad_rule(G):
+    sw = G["section_wide"]
+    c = lambda ch, b, d: sw[f"{ch}|cost|{b}|{d}"]["median"]
+    mol = lambda b, d: d * (b / 8) ** 2
+    ok = {(b, d): all(c(ch, b, d) <= TOL * c(ch, b, 100) for ch in P.CHEMS) for b in BINS for d in P.DEPTHS}
+    worst = max([mol(b, d) for (b, d), v in ok.items() if not v], default=0)
+    need = min(mol(b, d) for (b, d), v in ok.items() if v and mol(b, d) > worst)
+    bad = [(b, d) for (b, d), v in ok.items() if not v and mol(b, d) >= need]
+    if bad:
+        sys.exit(f"MAD rule in molecules fails: {bad} fail at {need:g} molecules or more")
+    by_depth = {d: next(b for b in BINS if mol(b, d) >= need) for d in P.DEPTHS}
+    return int(round(need)), by_depth
+
+def widened_done(G):
+    nb = G["neighbourhood"]
+    return all(nb.get(f"probe|{k}|{dm}|{d}", {}).get("widened", {}).get("n", 0) >= WIDE_MIN
+               for k in KINDS for dm in LQRS for d in ENDS)
 
 def settings(G):
     nc = G["neighbourhood_combined"]
@@ -260,6 +282,7 @@ def settings(G):
     agree = [dm for dm in LQRS if tiers(P.POLYA, dm) == nbh[dm]]
     cuts = [int(5 * round(math.sqrt(a * b) / 5)) for a, b in zip(LQRS, LQRS[1:])]
     safe, floor = rules(G)
+    mad_mol, mad_bins = mad_rule(G)
 
     wc = G["widened_check"]
 
@@ -286,7 +309,8 @@ def settings(G):
     ed = G["edge"]
     sa = {}
     for tier, dep in (("hi", top), ("lo", ENDS[-1])):
-        sc = {b: np.mean([ed[f"{a}|dropout01edge|{dm}|{dep}"]["median"] or 0 for dm in LQRS[1:]])
+        sc = {b: np.mean([ed[f"{a}|{k}|{dm}|{dep}"]["median"] or 0
+                          for dm in LQRS[1:] for k in ("dropout01", "dropout01edge")])
               for b, a in ((8, "19_spatialartifacts_8um"), (16, "20_spatialartifacts_16um"))}
         sa[tier] = max(sc, key=sc.get)
 
@@ -306,7 +330,8 @@ def settings(G):
         classes.append(dict(label=label, hi=hi, lo=lo, note=note))
     for e, label in zip(extra, labels[len(LQRS):]):
         classes.append(dict(label=label, **e))
-    return dict(nbh=nbh, agree=agree, cuts=cuts, safe=safe, floor=floor, top=top, rec=rec, sa=sa,
+    return dict(nbh=nbh, agree=agree, cuts=cuts, safe=safe, floor=floor, mad_mol=mad_mol, mad_bins=mad_bins,
+                top=top, rec=rec, sa=sa,
                 classes=classes, sizes=sizes)
 
 def lib():
@@ -360,7 +385,7 @@ def draw(G):
                 text(x, y, s, 11, C["muted"], anchor=anchor, fam=D.MONO)]
 
     def setting(r):
-        return f"{r['bin']} µm bins" + ("" if r["bin"] == 8 else " + A&D") + f", {r['k']} neighbours"
+        return f"{r['bin']} µm bins" + ("" if r["bin"] == 8 else " + A&P") + f", {r['k']} neighbours"
 
     hi, lo = f"≥ {top} UMIs/bin", f"< {top} UMIs/bin"
     TX, TW = 440, 340
@@ -371,7 +396,12 @@ def draw(G):
     S1, S2, CH = 20, 84, 44
     D1 = (230, S2 + CH + 20 + 46)
     DE = (230, D1[1] + 46 + 82 + 44)
-    T_MAD = (RX, D1[1] - 26, RW, 76); T_EDGE = (RX, DE[1] - 26, RW, 76)
+    used = sorted(set(st["mad_bins"].values()))
+    umi = {b: st["mad_mol"] / (b / 8) ** 2 for b in used}
+    mad_rows = [((f"≥ {umi[b]:g} UMIs/bin" if i == 0 else f"< {umi[used[i - 1]]:g} UMIs/bin" if i == len(used) - 1
+                  else f"{umi[b]:g}–{umi[used[i - 1]]:g} UMIs/bin"), f"{b} µm bins" + ("" if b == 8 else " + A&P"))
+                for i, b in enumerate(used)]
+    T_MAD = (RX, D1[1] - 26, RW, 38 + 19 * len(mad_rows)); T_EDGE = (RX, DE[1] - 26, RW, 76)
     rejoin = T_EDGE[1] + T_EDGE[3] + 16
     ys, y = [], rejoin + 70
     for h in hs:
@@ -402,14 +432,14 @@ def draw(G):
     b += card(20, S1, 760, CH, "Compute QC metrics on the 8 µm bins", node="s1")
     b += card(20, S2, 760, CH, "Inspect the tissue image", node="s2")
 
-    b += diamond(*D1, 130, 46, ("Damage visible and", "its size known?"), "d-seen")
-    b += diamond(*DE, 120, 44, ("At the tissue", "edge?"), "d-edge")
-    b += diamond(*DS, 110, 48, ("How large are", "the patches?"), "d-size")
+    b += diamond(*D1, 130, 46, ("Damage visible and", "its diameter known?"), "d-seen")
+    b += diamond(*DE, 120, 44, ("Damage", f"{cuts[0]} µm or wider?"), "d-edge")
+    b += diamond(*DS, 110, 48, ("What is the", "damage diameter?"), "d-size")
 
-    b += outcome(*T_MAD, "MAD threshold, scuttle", [(hi, "8 µm bins"), (lo, f"{safe} µm bins + A&D")],
+    b += outcome(*T_MAD, "MAD threshold", mad_rows,
                  node="t-mad")
-    b += outcome(*T_EDGE, "Also SpatialArtifacts", [(hi, f"{sa['hi']} µm bins" + ("" if sa["hi"] == 8 else " + A&D")),
-                                                    (lo, f"{sa['lo']} µm bins" + ("" if sa["lo"] == 8 else " + A&D"))],
+    b += outcome(*T_EDGE, "Also SpatialArtifacts", [(hi, f"{sa['hi']} µm bins" + ("" if sa["hi"] == 8 else " + A&P")),
+                                                    (lo, f"{sa['lo']} µm bins" + ("" if sa["lo"] == 8 else " + A&P"))],
                  node="t-edge")
     for i, cl in enumerate(cls):
         rows = ([("any depth", setting(cl["hi"]))] if same(cl)
@@ -431,14 +461,16 @@ def draw(G):
               f"{G['very_large'][f'combined|probe|{top}']['n']} at {top} UMIs per bin, "
               f"{G['very_large'][f'combined|probe|{ENDS[-1]}']['n']} at {ENDS[-1]}); "
               if VERY_LARGE in st["sizes"] else "") +
-           f"size bands at the geometric midpoints between the diameters tested, "
+           f"diameter bands at the geometric midpoints between the diameters tested, "
            f"{', '.join(map(str, st['sizes'][:-1]))} and {st['sizes'][-1]} µm; for SpatialArtifacts, the bin that "
-           f"found more low-count damage at the tissue edge; for the MAD threshold, the finest bin "
-           f"whose cost on undamaged tissue did not grow as depth fell. Drawn from {G['runs']} scored "
+           f"found a larger share of low-count damage {LQRS[1]} µm in diameter or larger, inside the tissue and at "
+           f"its edge; for the MAD threshold, the smallest bin "
+           f"that holds about {st['mad_mol']} molecules, the fewest at which its false-positive rate stayed within "
+           f"{TOL:g} times its rate at {top} UMIs per bin. Drawn from {G['runs']} scored "
            f"runs, {G['generated']}.")
     desc = ("Flowchart: compute QC metrics on 8 µm bins and inspect the image. If no damage is seen, "
-            "run a MAD threshold; if damage is seen, add SpatialArtifacts at the tissue edge and run "
-            "SpotSweeper with a bin size and number of neighbours set by the size of the damage and the depth; "
+            f"run a MAD threshold; if damage is seen, add SpatialArtifacts for damage {cuts[0]} µm or wider and run "
+            "SpotSweeper with a bin size and number of neighbours set by the damage diameter and the depth; "
             "then check what was removed.")
     return D, D.page("guideline", "Discussion · guideline", "How to run QC on a Visium HD section",
                      desc, H, "\n".join(b), cap)
@@ -458,10 +490,15 @@ if __name__ == "__main__":
             "classes": [dict(label=c["label"], min_um=bounds[i], max_um=bounds[i + 1],
                              hi=dict(c["hi"]), lo=dict(c["lo"]))
                         for i, c in enumerate(st["classes"])],
-            "mad": {"hi": 8, "lo": st["safe"]}, "spatialartifacts": st["sa"]}
+            "mad": {"hi": 8, "lo": st["mad_bins"][P.DEPTHS[-1]], "min_molecules_per_bin": st["mad_mol"],
+                    "bins": list(BINS)},
+            "spatialartifacts": {**st["sa"], "min_um": st["cuts"][0]}}
     p = os.path.join(OUT, "guideline_settings.json")
     json.dump(tool, open(p, "w"), indent=1)
     print("wrote", p)
+    if widened_done(G):
+        print("NOTE the widened arms are complete on the whole subset; the settings in Fig. 6 now "
+              "rest on them without the provisional note: re-read the Discussion steps against it")
     D, html = draw(G)
     base = os.path.join(OUT, "fig_guideline")
     open(base + ".html", "w").write(html)

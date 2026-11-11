@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
 import argparse, glob, os, re
+import warnings
+warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 import numpy as np, pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -8,11 +11,14 @@ import panel as P
 import figstyle as FS
 
 BINS = (8, 16, 32, 64)
-ARMS = {"scuttle MAD": P.MAD, "SpotSweeper": P.SPOTSWEEPER}
+ARMS = {"scuttle MAD": P.MAD, "SpotSweeper": P.SPOTSWEEPER, "SpatialArtifacts": P.SPATIALARTIFACTS}
+LABEL = {"scuttle MAD": "MAD threshold"}
 KINDS = [("mito", "Mitochondrial elevation"), ("dropout01", "Signal loss")]
 DIAMS = (32.0, 64.0, 256.0)
 DIAM_COL = {32.0: "#2a78d6", 64.0: "#1baf7a", 256.0: "#eb6834"}
 DIAM_MK = {32.0: "o", 64.0: "s", 256.0: "^"}
+DEPTH_COL = {100: "#0d2b55", 50: "#1f4f8e", 25: "#3570b8", 12: "#5a8fd6"}
+DEPTH_MK = {100: "o", 50: "s", 25: "^", 12: "D"}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#d8d7d2"
 
 def style():
@@ -31,6 +37,8 @@ def load(root, depth):
 METRIC_LABEL = {"recall": "Recall (%)", "f1": "F1 (%)"}
 
 def score(df, arm, kind, diam, metric):
+    if arm is None:
+        return np.nan
     q = (df.arm == arm) & (df["kind"] == kind) & (df.diameter_um == diam)
     v = df.loc[q, metric]
     return v.iloc[0] * 100 if len(v) else np.nan
@@ -44,7 +52,7 @@ def block(sf, frames, depth, metric, drop=(), header=True, rows=None):
                   if P.chemistry(d) == ch and not any(k in d for k in drop)]
             ax = axs[i, j]
             for diam in DIAMS:
-                per = np.array([[score(frames[d], ARMS[t][b], kind, diam, metric)
+                per = np.array([[score(frames[d], ARMS[t].get(b), kind, diam, metric)
                                  for b in BINS] for d in ds], float)
                 m = np.nanmedian(per, axis=0)
                 q1, q3 = np.nanpercentile(per, 25, axis=0), np.nanpercentile(per, 75, axis=0)
@@ -64,7 +72,7 @@ def block(sf, frames, depth, metric, drop=(), header=True, rows=None):
             ax.set_ylim(0, 105)
             ax.yaxis.grid(True, color=GRID, lw=.5, zorder=0); ax.set_axisbelow(True)
             if i == 0 and header:
-                ax.set_title(f"{t}\n{P.CHEM_LABEL[ch]}", pad=6, color=INK)
+                ax.set_title(f"{LABEL.get(t, t)}\n{P.CHEM_LABEL[ch]}", pad=6, color=INK)
             if j == 0:
                 ax.set_ylabel(METRIC_LABEL[metric], fontsize=7.5)
             if j == len(cols) - 1:
@@ -79,9 +87,9 @@ def save(fig, out):
         print("wrote", f"{out}.{ext}")
     plt.close(fig)
 
-def key(fig, axs):
+def key(fig, axs, ncol=3):
     h, l = axs[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, loc="outside upper center", ncol=3, frameon=False, handlelength=1.8,
+    fig.legend(h, l, loc="outside upper center", ncol=ncol, frameon=False, handlelength=1.8,
                columnspacing=2.2, fontsize=7.2)
 
 def figure(frames, out, depth, drop=(), metric="recall"):
@@ -108,6 +116,47 @@ def stacked(grid, out, depths, metric, titles, height=3.4):
             sf.supxlabel("bin size QC was run on (µm)", fontsize=7.5)
     save(fig, out)
 
+def overlay(grid, out, depths, metric, diam):
+    frames = {depth: load(grid, depth) for depth in depths}
+    cols = [(t, ch) for t in ARMS for ch in P.CHEMS]
+    fig = plt.figure(figsize=(7.2, 4.4), layout="constrained")
+    axs = fig.subplots(len(KINDS), len(cols), sharex=True, sharey="row")
+    rows = []
+    for i, (kind, ktitle) in enumerate(KINDS):
+        for j, (t, ch) in enumerate(cols):
+            ax = axs[i, j]
+            for depth in depths:
+                fr = frames[depth]
+                ds = [d for d in fr if P.chemistry(d) == ch]
+                per = np.array([[score(fr[d], ARMS[t].get(b), kind, diam, metric) for b in BINS]
+                                for d in ds], float)
+                m = np.nanmedian(per, axis=0)
+                q1, q3 = np.nanpercentile(per, 25, axis=0), np.nanpercentile(per, 75, axis=0)
+                col = DEPTH_COL[depth]
+                ax.fill_between(BINS, q1, q3, color=col, alpha=.10, lw=0)
+                ax.plot(BINS, m, color=col, lw=1.6, marker=DEPTH_MK[depth], ms=4,
+                        mec="white", mew=.7, zorder=5, label=f"{depth} UMIs per bin")
+                for b, v in zip(BINS, m):
+                    rows.append(dict(depth=depth, chem=ch, damage=kind, tool=t, lesion_um=diam,
+                                     qc_bin_um=b, metric=metric, value=v, n=per.shape[0]))
+            ax.set_xscale("log", base=2)
+            ax.set_xticks(BINS)
+            ax.set_xticklabels([str(b) for b in BINS])
+            ax.set_ylim(0, 105)
+            ax.yaxis.grid(True, color=GRID, lw=.5, zorder=0); ax.set_axisbelow(True)
+            if i == 0:
+                ax.set_title(f"{LABEL.get(t, t)}\n{P.CHEM_LABEL[ch]}", pad=6, color=INK)
+            if j == 0:
+                ax.set_ylabel(METRIC_LABEL[metric], fontsize=7.5)
+            if j == len(cols) - 1:
+                ax.text(1.04, 0.5, ktitle.replace(" ", "\n", 1), transform=ax.transAxes,
+                        rotation=270, ha="left", va="center", fontsize=7.5,
+                        fontweight="bold", color=INK, linespacing=1.1)
+    fig.supxlabel("bin size QC was run on (µm)", fontsize=7.5)
+    key(fig, axs, ncol=len(depths))
+    save(fig, out)
+    pd.DataFrame(rows).to_csv(f"{out}_stats.csv", index=False)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--grid", default="/work/benchmark_grid")
@@ -119,9 +168,14 @@ def main():
     ap.add_argument("--name", help="file name of the stacked figure")
     ap.add_argument("--depth-titles", action="store_true")
     ap.add_argument("--block-height", type=float, default=3.4, help="inches per depth")
+    ap.add_argument("--overlay", type=float,
+                    help="with --stack: this LQR diameter only, one curve per depth")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     style()
+    if a.stack and a.overlay:
+        overlay(a.grid, os.path.join(a.outdir, a.name), a.stack, a.metric, a.overlay)
+        return
     if a.stack:
         stacked(a.grid, os.path.join(a.outdir, a.name), a.stack, a.metric, a.depth_titles,
                 a.block_height)

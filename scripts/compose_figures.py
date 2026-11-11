@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -8,7 +9,7 @@ import figstyle as FS
 FIG = "/work/benchmark_grid/figures"
 FONT = font_manager.findfont(font_manager.FontProperties(family=FS.FONT, weight="bold"))
 SETS = {
-    "figS1_cost_recall": [f"fig1_{m}.png" for m in ("mad", "miqc", "spotsweeper")],
+    "figS1_cost_recall": [f"fig1_{m}.png" for m in ("mad", "miqc", "spotsweeper", "spatialartifacts")],
     "figS2_recall_mito": [f"fig1_1_recall_mito_{c}.png" for c in ("probe", "3prime")],
     "figS3_recall_signal_loss": [f"fig1_2_recall_signal_loss_{c}.png" for c in ("probe", "3prime")],
     "figS8_cost_grid": [f"fig1_3_false_positive_{c}.png" for c in ("probe", "3prime")],
