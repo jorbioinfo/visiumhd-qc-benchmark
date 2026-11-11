@@ -1,5 +1,19 @@
 # visiumhd-qc-benchmark
 
+## Contents
+
+- [What the benchmark does](#what-the-benchmark-does)
+- [Layout](#layout)
+- [Requirements](#requirements)
+- [Running the benchmark](#running-the-benchmark)
+- [Reproducing the deposited runs exactly](#reproducing-the-deposited-runs-exactly)
+- [The QC advisor CLI](#the-qc-advisor-cli)
+  - [If the damage size is unknown](#if-the-damage-size-is-unknown)
+  - [Example report](#example-report)
+- [The QC tool](#the-qc-tool)
+- [Citation](#citation)
+- [Licence](#licence)
+
 Code for the paper *How should sub-cellular spatial transcriptomics be quality controlled? A guideline from a benchmark with injected damage*. It builds a benchmark with known damage on 40 public Visium HD sections,
 runs each quality control (QC) method on it, scores every method against the damage, and
 regenerates every figure, table and number in the paper. It also holds the implementation
@@ -8,6 +22,8 @@ procedure to a new section.
 
 The benchmark data (injection records, ground truth, every arm's verdict and the scored
 tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
+
+---
 
 ## What the benchmark does
 
@@ -53,6 +69,8 @@ The main steps, in the order a run passes them:
 
 The figure and table scripts that `100_make_final.sh` calls are listed in it, each with what
 it reads and writes in its header.
+
+---
 
 ## Requirements
 
@@ -112,6 +130,8 @@ the single pass of `run_section.sh`. On 24 runs the record of the call that buil
 overwritten by a later call. `data/README.md` describes the stages, lists these runs and gives
 their reconstructed records, in `data/reconstructed/`, with how they were checked.
 
+---
+
 ## The QC advisor CLI
 
 The Visium HD QC Advisor reads a section's filtered 8 µm gene-expression matrix and barcodes,
@@ -119,8 +139,7 @@ computes the mean UMIs per bin, and recommends the QC tests and settings in Fig.
 It writes a standalone HTML report with the reason for each choice and the measured recall
 and false-positive rates for the relevant benchmark conditions.
 
-Use Node.js 16.20 or later. From the root of this repository, pass the Space Ranger directory
-that contains `matrix.mtx.gz` and `barcodes.tsv.gz` (or their decompressed versions).
+Use Node.js 16.20 or later and run the command from the repository root.
 
 ```sh
 node qctool/advisor/qc-advisor.cjs \
@@ -128,10 +147,24 @@ node qctool/advisor/qc-advisor.cjs \
   --damage-um 64 --edge --out qc-report.html
 ```
 
-Estimate `--damage-um` from the tissue image. Omit it when the size is unknown or no damage
-is visible. Use `--edge` if the suspected damage is at the tissue edge. Open `qc-report.html`
-in a browser. The advisor streams the files locally and reports a recommendation. Run the
-command with `--help` for the available options.
+**Parameters**
+
+- `--input DIRECTORY` **(required)**. Space Ranger's `outs/binned_outputs/square_008um/filtered_feature_bc_matrix` directory. It must contain `matrix.mtx.gz` and `barcodes.tsv.gz`, or their decompressed versions.
+- `--damage-um DIAMETER` **(optional)**. Estimated damage diameter in µm from the tissue image.
+- `--edge` **(optional)**. Adds guidance on checking removals along the tissue boundary when damage is suspected there.
+- `--out FILE` **(optional)**. Path to the HTML report. Defaults to `qc-advisor-report.html`. Open the report in a browser.
+- `-h`, `--help` **(optional)**. Prints usage and exits.
+
+### If the damage size is unknown
+
+Omit `--damage-um` if you cannot estimate the diameter or see no damage. The advisor uses
+the mean UMI count to recommend a bin size for a section-wide median absolute deviation
+(MAD) threshold.
+
+```sh
+node qctool/advisor/qc-advisor.cjs \
+  --input /path/to/outs/binned_outputs/square_008um/filtered_feature_bc_matrix
+```
 
 ### Example report
 
@@ -140,20 +173,33 @@ This report uses a public kidney section at approximately 12 UMIs per 8 µm bin,
 
 ![Example Visium HD QC Advisor report](examples/qc-advisor-report.png)
 
+---
+
 ## The QC tool
 
-`qctool/vhdqc.py` applies the procedure of Fig. 6 to a Space Ranger output. It asks for the
-two things the data cannot give, the size of any damage seen on the tissue image and
-whether it sits at the tissue edge, and reads the test, bin size and number of neighbours
-from `qctool/guideline_settings.json`, the file the script that draws Fig. 6 writes. Each
-test is run by the function the benchmark arm ran (`qctool/qc_core.R`, cut verbatim from
-`scripts/12_run_arms_k48all.R` and `R/ad.R` by `qctool/make_core.R`).
+`qctool/vhdqc.py` runs QC on a Space Ranger section. It writes the flagged bins, a QC map
+and a report. The tool reads its settings from `qctool/guideline_settings.json` and runs
+the same QC functions as the benchmark.
 
-    docker run --rm -v "$PWD":/work -v /path/to/outs/binned_outputs:/in:ro vhd-qc-benchmark \
-      /opt/pyenv/bin/python /work/qctool/vhdqc.py --input /in --out /work/qc_out --damage-um 200
+```sh
+docker run --rm -v "$PWD":/work -v /path/to/outs/binned_outputs:/in:ro vhd-qc-benchmark \
+  /opt/pyenv/bin/python /work/qctool/vhdqc.py --input /in --out /work/qc_out --damage-um 200
+```
+
+**Parameters**
+
+- `--input DIRECTORY` **(required)**. Space Ranger's `outs/binned_outputs` directory, which contains `square_008um`. Use the mounted path `/in` in the example above.
+- `--out DIRECTORY` **(required)**. Directory for the QC results. `/work/qc_out` in the container corresponds to `qc_out/` in the repository.
+- `--damage-um DIAMETER` **(optional)**. Estimated damage diameter in µm. Omit it when the size is unknown or no damage is visible. The tool then runs a section-wide MAD threshold.
+- `--edge` **(optional)**. With a damage diameter, adds SpatialArtifacts for suspected edge damage. This requires the 8 µm raw feature-barcode matrix.
+- `--settings FILE` **(optional)**. Path to a guideline settings JSON file. Defaults to the bundled `qctool/guideline_settings.json`.
+- `--keep-views` **(optional)**. Keeps the intermediate coarse-bin files in the output directory.
+- `-h`, `--help` **(optional)**. Prints usage and exits.
 
 `qctool/tests/test_identity.sh` checks that the tool's verdicts equal the benchmark arms'
 on a deposited run.
+
+---
 
 ## Citation
 
