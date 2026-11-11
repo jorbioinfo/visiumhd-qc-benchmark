@@ -34,7 +34,7 @@ tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
 | `scripts/run_section.sh` | Build and score one run as the Methods describe |
 | `scripts/rebuild_run.sh` | Replay one run's injection records and compare with its matrices |
 | `scripts/100_make_final.sh` | Regenerate every figure, table and number from a complete grid |
-| `qctool/` | The command-line QC tool (the procedure of Fig. 6) |
+| `qctool/` | The command-line QC tool and advisor (the procedure of Fig. 6) |
 | `data/` | The panel's sources, which runs carry the subset conditions, and the reconstructed injection records (see `data/README.md`) |
 | `checks/` | Minimal examples of two package issues the benchmark works around |
 
@@ -111,6 +111,27 @@ The deposited runs were built in stages as the design grew, so not every run was
 the single pass of `run_section.sh`. On 24 runs the record of the call that built the run was
 overwritten by a later call. `data/README.md` describes the stages, lists these runs and gives
 their reconstructed records, in `data/reconstructed/`, with how they were checked.
+
+## The QC advisor CLI
+
+The Visium HD QC Advisor reads a section's filtered 8 µm gene-expression matrix and barcodes,
+computes the mean UMIs per bin, and recommends the QC tests and settings in Fig. 6.
+It writes a standalone HTML report with the reason for each choice and the measured recall
+and false-positive rates for the relevant benchmark conditions.
+
+Use Node.js 16.20 or later. From the root of this repository, pass the Space Ranger directory
+that contains `matrix.mtx.gz` and `barcodes.tsv.gz` (or their decompressed versions).
+
+```sh
+node qctool/advisor/qc-advisor.cjs \
+  --input /path/to/outs/binned_outputs/square_008um/filtered_feature_bc_matrix \
+  --damage-um 64 --edge --out qc-report.html
+```
+
+Estimate `--damage-um` from the tissue image. Omit it when the size is unknown or no damage
+is visible. Use `--edge` if the suspected damage is at the tissue edge. Open `qc-report.html`
+in a browser. The advisor streams the files locally and reports a recommendation. Run the
+command with `--help` for the available options.
 
 ## The QC tool
 
