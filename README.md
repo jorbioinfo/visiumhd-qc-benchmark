@@ -133,6 +133,13 @@ is visible. Use `--edge` if the suspected damage is at the tissue edge. Open `qc
 in a browser. The advisor streams the files locally and reports a recommendation. Run the
 command with `--help` for the available options.
 
+### Example report
+
+This report uses a public kidney section at approximately 12 UMIs per 8 µm bin, with
+64 µm and tissue-edge damage supplied as example inputs.
+
+![Example Visium HD QC Advisor report](examples/qc-advisor-report.png)
+
 ## The QC tool
 
 `qctool/vhdqc.py` applies the procedure of Fig. 6 to a Space Ranger output. It asks for the
