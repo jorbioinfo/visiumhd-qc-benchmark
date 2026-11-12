@@ -20,7 +20,7 @@ of the aggregation-and-projection (A&P) approach and a command-line advisor that
 QC settings for a new section.
 
 The benchmark data (injection records, ground truth, every arm's verdict and the scored
-tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681225.
+tables) are in Zenodo: https://doi.org/10.5281/zenodo.23681224.
 
 ---
 
