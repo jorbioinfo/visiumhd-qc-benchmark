@@ -98,7 +98,10 @@ def panel(ax, df, arms, cond, depth, dlabel, first_col, first_row):
                 mec="white" if filled else c, mew=0.9 if filled else 1.3, alpha=.9)
     ax.axvline(50, color=BASE, lw=0.7, zorder=1)
     ax.axhline(50, color=BASE, lw=0.7, zorder=1)
-    ax.set_xscale("log"); ax.set_xlim(XFLOOR, XCEIL); ax.set_ylim(-4, 106)
+    ax.axvline(100, color=BASE, lw=0.7, ls=":", zorder=1)
+    for recall in (0, 100):
+        ax.axhline(recall, color=BASE, lw=0.7, ls=":", zorder=1)
+    ax.set_xscale("log")
     ax.set_xticks([0.1, 1, 10, 100]); ax.set_xticklabels(["0.1", "1", "10", "100"])
     ax.set_yticks([0, 50, 100]); ax.tick_params(colors=INK2)
     if first_row:
@@ -114,6 +117,7 @@ def main():
     a = ap.parse_args()
     style()
     df = pd.read_csv(a.ci)
+    figures = []
     for tool, arms in TOOLS.items():
         cols = [(dep, dlabel, ch) for dep, dlabel in DEPTHS for ch in P.CHEMS]
         fig, axs = plt.subplots(2, len(cols), figsize=(7.2, 3.45), sharex=True, sharey=True)
@@ -145,8 +149,19 @@ def main():
                             f"{nfmt(ns.get((k, ch, DEPTHS[-1][0]), set()))} low"
                             for k, (_a, lab) in arms.items()) for ch in P.CHEMS)
         print(f"{tool} sections: {cov}")
-        fig.tight_layout(rect=(0, 0.1, 1, 1), h_pad=1.0, w_pad=0.7)
         slug = tool.lower().replace(" ", "")
+        figures.append((slug, fig, ns))
+
+    x_low, x_high = zip(*(fig.axes[0].get_xlim() for _, fig, _ in figures))
+    y_low, y_high = zip(*(fig.axes[0].get_ylim() for _, fig, _ in figures))
+    xlim = (min(XFLOOR, *x_low), max(XCEIL, *x_high))
+    ylim = (min(-4, *y_low), max(106, *y_high))
+    for slug, fig, ns in figures:
+        fig.axes[0].set(xlim=xlim, ylim=ylim)
+        for ax in fig.axes:
+            left, bottom, right, top = ax.dataLim.extents
+            assert xlim[0] < left <= right < xlim[1] and ylim[0] < bottom <= top < ylim[1], slug
+        fig.tight_layout(rect=(0, 0.1, 1, 1), h_pad=1.0, w_pad=0.7)
         for ext in ("pdf", "png", "svg"):
             fig.savefig(os.path.join(a.outdir, f"fig1_{slug}.{ext}"), bbox_inches="tight")
         print("wrote", f"fig1_{slug}", "n per panel:", ns)

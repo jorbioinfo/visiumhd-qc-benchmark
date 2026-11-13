@@ -38,6 +38,10 @@ def main():
         ims = [Image.open(os.path.join(FIG, f)) for f in files]
         width = max(im.width for im in ims)
         parts = [lettered(im, "abcdefgh"[k], width) for k, im in enumerate(ims)]
+        if name == "figS1_cost_recall":
+            for letter, source, part in zip("abcd", files, parts):
+                part.save(os.path.join(FIG, f"figS6{letter}_{source.removeprefix('fig1_')}"),
+                          dpi=(600, 600))
         out = Image.new("RGB", (width, sum(p.height for p in parts)), "white")
         y = 0
         for p in parts:
