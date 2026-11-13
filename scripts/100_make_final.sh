@@ -26,7 +26,7 @@ done; done
 py /work/scripts/69_figure_binsize.py --stack 100 12 --metric recall --name fig2_binsize_recall 2>&1 |
   grep -c wrote | sed "s/^/--- 69 Fig. 2: files written /"
 py /work/scripts/69_figure_binsize.py --stack 100 50 25 12 --metric f1 --overlay 256 \
-  --name fig4_binsize_f1 2>&1 | grep -c wrote | sed "s/^/--- 69 Fig. 4: files written /"
+  --name fig5_binsize_f1 2>&1 | grep -c wrote | sed "s/^/--- 69 Fig. 5: files written /"
 for s in scripts/63_figure_discarded.py scripts/91_figure_routes.py \
          scripts/95_figure_downstream.py scripts/90_supp_figs.py scripts/61_figures_grid.py; do
   echo "--- $s"
@@ -36,15 +36,15 @@ py /work/scripts/compose_figures.py 2>&1 | tail -9
 
 echo
 echo "######## 4. generated tables"
-py /work/scripts/93_k48_table.py > "$OUT/tableS3.md" 2>/dev/null &&
-  echo "Table S3 written to $OUT/tableS3.md"
+py /work/scripts/93_k48_table.py > "$OUT/tableS7_neighbours_generated.md" 2>/dev/null &&
+  echo "Table S7 source written to $OUT/tableS7_neighbours_generated.md"
 py /work/scripts/149_sa_cutoff.py 2>&1 | grep -E 'bins, 12 UMIs'
 py /work/scripts/82_section_level_tests.py > logs/82_section_level_tests.log 2>&1 &&
-  echo "Table 3 / S2 tests written to $OUT/table3_tests.txt"
-grep -E '^#|sign test|rises in' "$OUT/table3_tests.txt"
+  echo "Table S1 written to $OUT/tableS1.txt"
+grep -E '^#|sign test|rises in' "$OUT/tableS1.txt"
 py /work/scripts/126_manuscript_numbers.py 2>&1 | tail -1
-python3 scripts/127_table1.py > "$OUT/table1.md" && echo "Table 1 written to $OUT/table1.md"
-python3 scripts/137_table3.py 2>&1 | sed "s/^/Table 3 and S5: /"
+python3 scripts/127_table1.py > "$OUT/tableS8_panel_generated.md" && echo "Table S8 source written to $OUT/tableS8_panel_generated.md"
+python3 scripts/137_table3.py 2>&1 | sed "s/^/Table S2 source: /"
 py /work/scripts/129_boundary_corrections.py 2>&1 | tail -1
 python3 scripts/128_guideline_figure.py 2>&1 | tail -2
 python3 scripts/138_supp_numbers.py 2>&1 | tail -1

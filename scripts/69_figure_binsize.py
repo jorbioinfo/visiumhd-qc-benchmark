@@ -182,9 +182,11 @@ def main():
         return
     frames = load(a.grid, a.depth)
     suffix = "" if a.metric == "recall" else f"_{a.metric}"
-    figure(frames, os.path.join(a.outdir, f"fig5_binsize_d{a.depth}{suffix}"), a.depth,
-           metric=a.metric)
-    figure(frames, os.path.join(a.outdir, f"fig5_binsize_d{a.depth}{suffix}_noKidney"),
+    name = f"binsize_d{a.depth}{suffix}"
+    if a.metric == "recall":
+        name = {50: "figS7_binsize_d50", 25: "figS8_binsize_d25"}.get(a.depth, name)
+    figure(frames, os.path.join(a.outdir, name), a.depth, metric=a.metric)
+    figure(frames, os.path.join(a.outdir, f"binsize_d{a.depth}{suffix}_noKidney"),
            a.depth, drop=tuple(P.MITO_NO_CONTRAST), metric=a.metric)
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ TESTS = (("SpotSweeper", "Neighbourhood (SpotSweeper)"), ("scuttle MAD", "Sectio
 SKIP = {("SpatialArtifacts", "mito")}
 KINDS = (("dropout01", "signal loss"), ("mito", "mito. elevation"))
 
-d = pd.concat([pd.read_csv(os.path.join(OUT, f"fig5_binsize_d{x}_stats.csv")) for x in DEPTHS])
+sources = ("binsize_d100", "figS7_binsize_d50", "figS8_binsize_d25", "binsize_d12")
+d = pd.concat([pd.read_csv(os.path.join(OUT, f"{name}_stats.csv")) for name in sources])
 d = d[d.metric == "recall"]
 
 def table(chem):
@@ -35,7 +36,7 @@ def table(chem):
                 rows.append(f"| {first[0]} | {first[1]} | {int(les)} µm | " + " | ".join(cells) + " |")
     return "\n".join(rows), gain, ns
 
-for chem, name in (("probe", "table3.md"), ("3prime", "tableS5.md")):
+for chem, name in (("probe", "tableS2_probe_generated.md"), ("3prime", "tableS2_polya_generated.md")):
     md, gain, ns = table(chem)
     open(os.path.join(OUT, name), "w").write(md + "\n")
     nstr = ", ".join(f"{k} d{dep}: {'/'.join(map(str, sorted(v)))}" for (k, dep), v in sorted(ns.items()))

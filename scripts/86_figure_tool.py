@@ -163,8 +163,8 @@ def main():
             assert xlim[0] < left <= right < xlim[1] and ylim[0] < bottom <= top < ylim[1], slug
         fig.tight_layout(rect=(0, 0.1, 1, 1), h_pad=1.0, w_pad=0.7)
         for ext in ("pdf", "png", "svg"):
-            fig.savefig(os.path.join(a.outdir, f"fig1_{slug}.{ext}"), bbox_inches="tight")
-        print("wrote", f"fig1_{slug}", "n per panel:", ns)
+            fig.savefig(os.path.join(a.outdir, f"recall_fpr_{slug}.{ext}"), bbox_inches="tight")
+        print("wrote", f"recall_fpr_{slug}", "n per panel:", ns)
         plt.close(fig)
 
 if __name__ == "__main__":

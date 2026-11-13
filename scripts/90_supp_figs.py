@@ -80,7 +80,7 @@ def fig_s4(df, outdir):
               bbox_to_anchor=(0.5, -0.12), handlelength=1.2)
     fig.tight_layout()
     for e in ("pdf", "svg", "png"):
-        fig.savefig(os.path.join(outdir, f"figS4_mito_baseline.{e}"), bbox_inches="tight")
+        fig.savefig(os.path.join(outdir, f"figS11_mito_baseline.{e}"), bbox_inches="tight")
     plt.close(fig)
 
 
@@ -137,7 +137,7 @@ def fig_s6(grid, outdir):
               columnspacing=1.2)
     fig.tight_layout()
     for e in ("pdf", "svg", "png"):
-        fig.savefig(os.path.join(outdir, f"figS6_matching_ladder.{e}"), bbox_inches="tight")
+        fig.savefig(os.path.join(outdir, f"figS13_matching_ladder.{e}"), bbox_inches="tight")
     plt.close(fig)
     print("S6 totals:", {k: int(counts[k].sum()) for k in order})
 
@@ -152,9 +152,9 @@ def main():
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
     style()
-    csv = os.path.join(a.outdir, "figS4_mito_baseline.csv")
+    csv = os.path.join(a.outdir, "figS11_mito_baseline.csv")
     fig_s6(a.grid, a.outdir)
-    print("wrote figS6_matching_ladder", flush=True)
+    print("wrote figS13_matching_ladder", flush=True)
     if a.from_csv:
         df = pd.read_csv(csv)
         df = order_s4(df[df.dataset.str.replace(" ", "_").isin(P.SECTIONS)])
@@ -162,7 +162,7 @@ def main():
         df = mito_baseline(a.src)
         df.to_csv(csv, index=False)
     fig_s4(df, a.outdir)
-    print("wrote figS4_mito_baseline")
+    print("wrote figS11_mito_baseline")
 
 
 if __name__ == "__main__":

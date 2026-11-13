@@ -212,18 +212,18 @@ def main():
         KIND = "mito"
         grid_figure(sc, mk, recall_pct,
                     "Mitochondrial elevation: recall" + lab,
-                    "Recall (%)", os.path.join(a.outdir, "fig1_1_recall_mito" + tag),
+                    "Recall (%)", os.path.join(a.outdir, "recall_mito" + tag),
                     ylim=(0, 108), key=last)
         KIND = "dropout01"
         grid_figure(sc, mk, recall_pct,
                     "Signal loss (1% of counts retained): recall" + lab,
-                    "Recall (%)", os.path.join(a.outdir, "fig1_2_recall_signal_loss" + tag),
+                    "Recall (%)", os.path.join(a.outdir, "recall_signal_loss" + tag),
                     ylim=(0, 108), key=last)
         KIND = "dropout01"
         grid_figure(sc, mk, fp_pct,
                     "Tissue discarded outside the injected LQRs "
                     "(upper bound on error: assumes only injected bins are damaged)" + lab,
-                    "False-positive rate (%)", os.path.join(a.outdir, "fig1_3_false_positive" + tag),
+                    "False-positive rate (%)", os.path.join(a.outdir, "false_positive_rate" + tag),
                     annotate_marker=True, key=last, tools=COST_TOOLS)
 
 

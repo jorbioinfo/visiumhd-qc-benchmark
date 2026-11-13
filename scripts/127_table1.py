@@ -2,7 +2,7 @@
 import csv, os
 
 WK = os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(WK, "benchmark_grid/figures/table1_panel.csv")
+SRC = os.path.join(WK, "benchmark_grid/figures/tableS8_panel.csv")
 
 PREP = {
     "11mm_Human_Breast_Cancer": "not stated", "11mm_Human_Colon_Cancer_Fresh_Frozen": "fresh frozen",

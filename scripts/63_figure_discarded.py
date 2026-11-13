@@ -269,7 +269,7 @@ def main():
         keep = lambda tbl: {d: {k: v for k, v in tbl[d].items() if P.chemistry(k) == ch}
                             for d in tbl}
         figure(keep(scores), keep(markers),
-               os.path.join(a.outdir, f"fig2_discarded_tissue_{ch}"), key=(ch == P.CHEMS[-1]))
+               os.path.join(a.outdir, f"marker_retention_{ch}"), key=(ch == P.CHEMS[-1]))
     depth_trend(scores, os.path.join(a.outdir, "fig3_depth_trend"))
 
 

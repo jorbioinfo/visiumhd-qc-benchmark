@@ -111,7 +111,7 @@ def method_failures(arm, big):
 def numbers(S):
     G = {"generated": f"{pd.Timestamp.now(tz='Asia/Taipei'):%Y-%m-%d %H:%M}",
          "runs": int(S.groupby(["section", "depth"]).ngroups)}
-    t1 = pd.read_csv(os.path.join(OUT, "table1_panel.csv"))
+    t1 = pd.read_csv(os.path.join(OUT, "tableS8_panel.csv"))
     G["panel"] = dict(sections=len(t1),
                       umi=[float(t1.native_mean_umi.min()), float(t1.native_mean_umi.max())],
                       mito=[float(t1.mito_baseline_pct.min()), float(t1.mito_baseline_pct.max())],
@@ -526,7 +526,7 @@ if __name__ == "__main__":
         print("NOTE the widened arms are complete on the whole subset; the settings in Fig. 6 now "
               "rest on them without the provisional note: re-read the Discussion steps against it")
     D, html = draw(G)
-    base = os.path.join(OUT, "fig_guideline")
+    base = os.path.join(OUT, "fig6_qc_guideline")
     open(base + ".html", "w").write(html)
     i, j = html.index("<svg "), html.index("</svg>") + len("</svg>")
     open(base + ".svg", "w").write('<?xml version="1.0" encoding="UTF-8"?>\n' + html[i:j].replace(

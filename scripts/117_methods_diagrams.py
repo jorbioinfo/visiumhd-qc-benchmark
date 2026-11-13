@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import math
 import os
+import shutil
+import struct
+import subprocess
+import zlib
 
 OUT = os.path.join(os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "methods_diagrams")
 W = 800
@@ -720,9 +724,9 @@ def marker():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    for name, fn in (("methods-overview", overview), ("methods-routes", routes),
-                     ("methods-lqr", lqr), ("methods-downstream", downstream),
-                     ("methods-marker", marker)):
+    for name, fn in (("fig1_study_design", overview), ("fig7_qc_arms", routes),
+                     ("fig8_synthetic_lqrs", lqr), ("fig9_clustering_design", downstream),
+                     ("figS12_marker_check", marker)):
         p = os.path.join(OUT, name + ".html")
         html = fn()
         open(p, "w").write(html)
@@ -730,4 +734,15 @@ if __name__ == "__main__":
         open(os.path.join(OUT, name + ".svg"), "w").write(
             '<?xml version="1.0" encoding="UTF-8"?>\n' + html[i:j].replace(
                 f'role="img"', f'width="{W}" role="img"', 1) + "\n")
+        if shutil.which("rsvg-convert"):
+            svg = os.path.join(OUT, name + ".svg")
+            png = os.path.join(OUT, name + ".png")
+            width = round(16 / 2.54 * 600)
+            data = subprocess.check_output(["rsvg-convert", "-w", str(width), "-b", "white", svg])
+            pixels_per_metre = round(600 / 0.0254)
+            phys = struct.pack(">4sIIB", b"pHYs", pixels_per_metre, pixels_per_metre, 1)
+            # librsvg omits print density. Insert pHYs after the fixed-length IHDR.
+            chunk = struct.pack(">I", 9) + phys + struct.pack(">I", zlib.crc32(phys))
+            with open(png, "wb") as file:
+                file.write(data[:33] + chunk + data[33:])
         print("wrote", p, "and .svg")

@@ -41,7 +41,7 @@ def bars(ax, i, v, clr):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default="benchmark_grid/figures/downstream_binned.csv")
-    ap.add_argument("--out", default="benchmark_grid/figures/fig8_downstream")
+    ap.add_argument("--out", default="benchmark_grid/figures/fig4_clustering_agreement")
     a = ap.parse_args()
     d = pd.read_csv(a.csv).drop_duplicates(
         subset=["section", "arm", "comparison"], keep="last")

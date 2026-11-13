@@ -7,7 +7,7 @@ OUT = os.path.join(WK, "benchmark_grid", "figures")
 L = []
 say = lambda s="": L.append(s)
 pct = lambda x: f"{100 * x:.1f}%"
-panel = pd.read_csv(os.path.join(OUT, "table1_panel.csv")).set_index("section")
+panel = pd.read_csv(os.path.join(OUT, "tableS8_panel.csv")).set_index("section")
 chem = panel.chemistry.to_dict()
 _spec = importlib.util.spec_from_file_location("t1", os.path.join(WK, "scripts", "127_table1.py"))
 T1 = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(T1)
@@ -122,7 +122,7 @@ for tool, b in (("section-wide", 8), ("section-wide", 64), ("neighbourhood", 8),
 say()
 
 say("## S5. Mitochondrial baseline (per-bin median and 90th percentile, all sections)")
-B = pd.read_csv(os.path.join(OUT, "figS4_mito_baseline.csv"))
+B = pd.read_csv(os.path.join(OUT, "figS11_mito_baseline.csv"))
 B["sec"] = B.dataset.str.replace(" ", "_")
 B["species"] = B.sec.map(lambda s: panel.species.get(s, "?"))
 for ch in ("probe", "3prime"):
@@ -215,8 +215,8 @@ for i, c in enumerate(St["classes"]):
                             f" | {100 * u[0].median():.1f}% | {100 * u[1].median():.1f}% | {100 * uc.median():.1f}% | {len(u[0])} |")
             else:
                 say(f"- S6 table: union {dm} um at {dep} UMIs/bin over {len(u[0])} sections, region test over {ev[0]['n']}; row left out")
-open(os.path.join(OUT, "guideline_table.md"), "w").write("\n".join(rows) + "\n")
-say("## S6: guideline_table.md written")
+open(os.path.join(OUT, "tableS5_guideline_generated.md"), "w").write("\n".join(rows) + "\n")
+say("## S6: tableS5_guideline_generated.md written")
 say()
 
 say("## S9. 36 against 48 neighbours, cost on undamaged tissue (probe)")
@@ -272,7 +272,7 @@ for tissue, secs in PAIRS:
         rows.append(f"| {tissue if i == 0 else ''} | {T1.label(sec)}{', ' + slide if slide == '11 mm' else ''} | "
                     f"{ch}, {T1.prep(r1)} | {sr} | "
                     f"{' / '.join(optimum(sec, dm) for dm in (32, 64, 256))} | {cost} |")
-open(os.path.join(OUT, "tableS4.md"), "w").write("\n".join(rows) + "\n")
+open(os.path.join(OUT, "tableS9_preparation_generated.md"), "w").write("\n".join(rows) + "\n")
 say(f"## S10: Table S4 written, {sum(len(s) for _, s in PAIRS)} sections in {len(PAIRS)} tissues")
 
 G = json.load(open(os.path.join(OUT, "guideline_numbers.json")))
@@ -284,7 +284,7 @@ for key, e in G["widened_check"].items():
     for k, lab in (("dropout01", "signal loss"), ("mito", "mito. elevation")):
         m = e[k]["median"]
         rows.append(f"| {dm} µm | {dep} | {lab} | {e[k]['n']} | " + " | ".join(f"{100 * m[c]:.1f}" for c in cols) + " |")
-open(os.path.join(OUT, "tableS1.md"), "w").write("\n".join(rows) + "\n")
+open(os.path.join(OUT, "tableS4_neighbourhood_generated.md"), "w").write("\n".join(rows) + "\n")
 say(f"## Table S1 written, {len(rows) - 2} rows")
 
 src = os.path.join(WK, "deposit", "out", "sources.tsv")
@@ -294,8 +294,8 @@ if os.path.exists(src):
     for _, r in S.iterrows():
         lic = str(r.licence).split(" (")[0]
         rows.append(f"| {r.section.replace('Visium_HD_', '').replace('_', ' ')} | {r.provider} | {r.source} | {lic} |")
-    open(os.path.join(OUT, "tableS6.md"), "w").write("\n".join(rows) + "\n")
+    open(os.path.join(OUT, "tableS10_sources_generated.md"), "w").write("\n".join(rows) + "\n")
     say(f"## Table S6 written, {len(S)} sections; providers {S.provider.value_counts().to_dict()}")
 
 open(os.path.join(OUT, "supp_numbers.md"), "w").write("# Supplementary numbers\n\n" + "\n".join(L) + "\n")
-print("wrote supp_numbers.md, tableS4.md, tableS6.md;", len(L), "lines")
+print("wrote supp_numbers.md, tableS9_preparation_generated.md, tableS10_sources_generated.md;", len(L), "lines")

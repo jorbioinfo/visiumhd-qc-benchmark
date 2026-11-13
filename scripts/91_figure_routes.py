@@ -77,8 +77,8 @@ def main():
     for ax, letter in zip(axs[0], "ab"):
         FS.letter_axes(fig, ax, letter)
     for e in ("pdf", "svg", "png"):
-        fig.savefig(os.path.join(a.outdir, f"fig7_routes.{e}"), bbox_inches="tight")
-    print("wrote fig7_routes; n per arm:", ns)
+        fig.savefig(os.path.join(a.outdir, f"figS10_widened_neighbourhood.{e}"), bbox_inches="tight")
+    print("wrote figS10_widened_neighbourhood; n per arm:", ns)
 
 if __name__ == "__main__":
     main()

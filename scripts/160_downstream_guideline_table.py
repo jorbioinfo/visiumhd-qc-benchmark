@@ -76,5 +76,5 @@ for chem, cname in (("probe", "Probe-based"), ("3prime", "3′ polyA")):
         out.append("| " + " | ".join(cells) + " |")
         first = False
 md = "\n".join(out)
-open(os.path.join(FIG, "downstream_guideline_table.md"), "w").write(md + "\n")
+open(os.path.join(FIG, "tableS6_clustering_generated.md"), "w").write(md + "\n")
 print(md)

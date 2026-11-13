@@ -118,7 +118,7 @@ if __name__ == "__main__":
     else:
         S = load()
         md = table(S)
-        open(os.path.join(GRID, "figures", "guideline_test_table.md"), "w").write(md + "\n")
+        open(os.path.join(GRID, "figures", "table1_guideline_generated.md"), "w").write(md + "\n")
         print(md)
         for arm in ("19_spatialartifacts_8um", "20_spatialartifacts_16um"):
             for dep in DEPTHS:

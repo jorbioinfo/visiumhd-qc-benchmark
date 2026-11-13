@@ -74,7 +74,7 @@ def panel_table():
                          mito_baseline_pct=round(100 * base, 2) if base is not None else None,
                          in_tissue_bins=n_tissue, spaceranger=sr))
     t = pd.DataFrame(rows)
-    t.to_csv(os.path.join(OUT, "table1_panel.csv"), index=False)
+    t.to_csv(os.path.join(OUT, "tableS8_panel.csv"), index=False)
     return t
 
 

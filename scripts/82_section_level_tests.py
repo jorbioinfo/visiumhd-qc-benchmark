@@ -9,7 +9,7 @@ import pandas as pd
 import panel as P
 
 WK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(WK, "benchmark_grid", "figures", "table3_tests.txt")
+OUT = os.path.join(WK, "benchmark_grid", "figures", "tableS1.txt")
 BINS = (8, 16, 32, 64)
 DIAMS = (32, 64, 256)
 KINDS = (("dropout01", "signal loss"), ("mito", "mito. elevation"))
