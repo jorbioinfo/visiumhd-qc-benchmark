@@ -6,7 +6,8 @@ import struct
 import subprocess
 import zlib
 
-OUT = os.path.join(os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "methods_diagrams")
+OUT = os.path.join(os.environ.get("VHDQC_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                   "methods_diagrams")
 W = 800
 SANS = "Arial, Helvetica, 'Liberation Sans', sans-serif"
 MONO = "Menlo, Consolas, 'Liberation Mono', monospace"
@@ -299,63 +300,81 @@ def routes():
     GREEN, GREEN_TINT = "#1baf7a", "rgba(27,175,122,0.08)"
     FOOT = {"native": "rgba(42,120,214,0.40)", "ad": "rgba(235,104,52,0.45)",
             "wide": "rgba(27,175,122,0.45)"}
+    ZY, ZH, VY = 104, 400, 560
     zones = (("Native", 40, C["link_tint"], "native", C["link"]),
-             ("A&P", 284, C["accent_tint"], "ad", C["accent"]),
-             ("Widened", 528, GREEN_TINT, "wide", GREEN))
+             ("Widened", 284, GREEN_TINT, "wide", GREEN),
+             ("A&P", 528, C["accent_tint"], "ad", C["accent"]))
     for name, x, tint, _, _ in zones:
-        b.append(rect(x, 104, 232, 336, tint, rx=8))
+        b.append(rect(x, ZY, 232, ZH, tint, rx=8))
         b.append(text(x + 12, 128, name, 14, weight=700))
     b += [path([(156, 88), (156, 140)]), path([(400, 88), (400, 140)]), path([(644, 88), (644, 140)]),
-          path([(156, 420), (156, 456)]), path([(400, 420), (400, 456)]), path([(644, 420), (644, 456)])]
+          path([(156, ZY + ZH), (156, VY)]), path([(400, ZY + ZH), (400, VY)]),
+          path([(644, ZY + ZH), (644, VY)])]
     b += [box(40, 40, 720, 48, "Injected 8 µm counts", kind="store", node="src"),
-          box(40, 456, 720, 48, "Verdict on the same 8 µm bins", kind="store", node="verdict")]
+          box(40, VY, 720, 48, "Verdict on the same 8 µm bins", kind="store", node="verdict")]
 
     def fine(x0, k, key):
         foot = nearest(18, 8, 8, k)
         return grid(x0, 140, 18, 18, 8, lambda i, j: C["ink"] if (i, j) == (8, 8)
                     else (FOOT[key] if (i, j) in foot else C["paper"]), sw=0.5)
     b += fine(84, 48, "native")
+    b += fine(328, 192, "wide")
     foot = nearest(9, 4, 4, 48)
-    b += grid(328, 140, 9, 9, 16, lambda i, j: C["ink"] if (i, j) == (4, 4)
+    b += grid(572, 140, 9, 9, 16, lambda i, j: C["ink"] if (i, j) == (4, 4)
               else (FOOT["ad"] if (i, j) in foot else C["paper"]), C["soft"], 0.8)
     for k in range(9):
-        b.append(f'<line x1="{328 + 16 * k + 8}" y1="140" x2="{328 + 16 * k + 8}" y2="284" '
+        b.append(f'<line x1="{572 + 16 * k + 8}" y1="140" x2="{572 + 16 * k + 8}" y2="284" '
                  f'stroke="rgba(11,11,11,0.12)" stroke-width="0.4"/>')
-        b.append(f'<line x1="328" y1="{140 + 16 * k + 8}" x2="472" y2="{140 + 16 * k + 8}" '
+        b.append(f'<line x1="572" y1="{140 + 16 * k + 8}" x2="716" y2="{140 + 16 * k + 8}" '
                  f'stroke="rgba(11,11,11,0.12)" stroke-width="0.4"/>')
-    b += fine(572, 192, "wide")
-    for cx, l1 in ((156, "48 nearest 8 µm bins"), (400, "48 nearest 16 µm bins"),
-                   (644, "192 nearest 8 µm bins")):
+    for cx, l1 in ((156, "48 nearest 8 µm bins"), (400, "192 nearest 8 µm bins"),
+                   (644, "48 nearest 16 µm bins")):
         b.append(text(cx, 308, l1, anchor="middle"))
 
     flag = lambda col, cells: (lambda i, j: col if (i, j) in cells else C["paper"])
     b += grid(132, 344, 4, 4, 12, flag(C["link"], {(1, 2)}), sw=0.8)
-    b += grid(336, 344, 2, 2, 24, flag(C["accent"], {(0, 1)}), sw=0.8)
-    b.append(mini_arrow(388, 410, 368, C["accent"], "arrow-accent"))
-    b += grid(416, 344, 4, 4, 12, flag(C["accent"], {(0, 2), (0, 3), (1, 2), (1, 3)}), sw=0.8)
-    b += grid(620, 344, 4, 4, 12, flag(GREEN, {(1, 2)}), sw=0.8)
-    for cx, lab in ((156, "verdict per 8 µm bin"), (400, "projected to 2 × 2 bins"),
-                    (644, "verdict per 8 µm bin")):
+    b += grid(376, 344, 4, 4, 12, flag(GREEN, {(1, 2)}), sw=0.8)
+    b += grid(580, 344, 2, 2, 24, flag(C["accent"], {(0, 1)}), sw=0.8)
+    b.append(mini_arrow(632, 654, 368, C["accent"], "arrow-accent"))
+    b += grid(660, 344, 4, 4, 12, flag(C["accent"], {(0, 2), (0, 3), (1, 2), (1, 3)}), sw=0.8)
+    for cx, lab in ((156, "verdict per 8 µm bin"), (400, "verdict per 8 µm bin"),
+                    (644, "projected to 2 × 2 bins")):
         b.append(text(cx, 412, lab, color=C["muted"], anchor="middle"))
+
+    facts = ((156, ("molecules per bin  ×1", False), ("area compared  ×1", False)),
+             (400, ("molecules per bin  ×1", False), ("area compared  ×4", True)),
+             (644, ("molecules per bin  ×4", True), ("area compared  ×4", False)))
+    for cx, *lines in facts:
+        for k, (s, strong) in enumerate(lines):
+            b.append(text(cx, 452 + 18 * k, s, color=C["ink"] if strong else C["muted"],
+                          weight=700 if strong else 400, anchor="middle"))
+
+    for x0, x1, lab in ((176, 380, "area alone"), (420, 624, "pooling alone")):
+        y = 538
+        b.append(f'<path d="M {x0} {y - 6} L {x0} {y} L {x1} {y} L {x1} {y - 6}" fill="none" '
+                 f'stroke="{C["muted"]}" stroke-width="1"/>')
+        b.append(text((x0 + x1) / 2, y - 11, lab, weight=700, anchor="middle"))
 
     cap = ("<b>Three routes to the same 8 µm verdict, shown for SpotSweeper at the 16 µm "
            "step.</b> Each panel draws one bin (black) and the bins it is compared against, at "
            "the same physical scale. Natively, a bin is compared with its 48 nearest 8 µm "
-           "bins. A&amp;P sums the counts of 2 × 2 bins into 16 µm bins, compares each with its "
-           "48 nearest 16 µm bins, and projects the verdict back with "
-           "<code>barcode_based_deconvolve</code>, so the four 8 µm bins of a large bin share "
-           "one verdict. The widened arm stays on the 8 µm grid and compares each bin with its "
-           "192 nearest bins, the same area as 48 bins of 16 µm. A&amp;P and the widened arm "
-           "therefore look across the same area and differ only in whether counts are pooled "
-           "before the test. The 32 and 64 µm steps scale the same way (768 and 3072 "
-           "neighbours). The widened arms were run on a subset of sections, at the deepest and "
+           "bins. The widened arm stays on the 8 µm grid and compares each bin with its 192 "
+           "nearest bins, the same area as 48 bins of 16 µm. A&amp;P sums the counts of 2 × 2 "
+           "bins into 16 µm bins, compares each with its 48 nearest 16 µm bins, and projects "
+           "the verdict back with <code>barcode_based_deconvolve</code>, so the four 8 µm bins "
+           "of a large bin share one verdict. A&amp;P therefore changes two things against the "
+           "native arm, the area compared and the molecules in each bin, and the widened arm "
+           "separates them: against the native arm it shows the effect of area alone, and "
+           "against A&amp;P it shows what pooling adds. The 32 and 64 µm steps scale the same "
+           "way (768 and 3072 neighbours). The widened arms were run at the deepest and "
            "shallowest levels.")
     return page("methods-routes", "Materials and Methods · arms",
                 "Aggregating counts versus widening the neighbourhood",
                 "Three routes from the injected 8 µm counts to a verdict on the same 8 µm bins, "
-                "drawn as the area each bin is compared against: 48 native bins, 48 summed "
-                "16 µm bins, or 192 native bins covering the same area as A&P.",
-                544, "\n".join(b), cap)
+                "drawn as the area each bin is compared against: 48 native bins, 192 native "
+                "bins covering the same area as A&P, or 48 summed 16 µm bins; the widened arm "
+                "separates the effect of area from the effect of pooling.",
+                VY + 64, "\n".join(b), cap)
 
 def lqr():
     b, d = [], []
@@ -411,13 +430,13 @@ def lqr():
     b.append(text(467, 222, "before", color=C["muted"], anchor="middle"))
     b.append(text(609, 222, "after", color=C["muted"], anchor="middle"))
 
-    OTHER, U, BH = "rgba(11,11,11,0.22)", 0.6, 10
+    OTHER, ADDED, U, BH = "rgba(11,11,11,0.22)", C["accent"], 0.6, 10
     def bar(x, y, oth, mt, add=0):
         out = [rect(x, y, oth * U, BH, OTHER)]
         if mt:
             out.append(rect(x + oth * U, y, mt * U, BH, C["muted"]))
         if add:
-            out.append(rect(x + (oth + mt) * U, y, add * U, BH, DMG))
+            out.append(rect(x + (oth + mt) * U, y, add * U, BH, ADDED))
         return out
     t0, y0 = 356, 388
     tgt = 10 / 9
@@ -465,7 +484,7 @@ def lqr():
     b += bar(528, y0 + 58, 40, 60)
     b.append(text(660, y0 + 67, "60%, unchanged", color=C["muted"]))
     for x, col, lab in ((40, OTHER, "other genes"), (148, C["muted"], "MT before"),
-                        (256, DMG, "MT added")):
+                        (256, ADDED, "MT added")):
         b.append(rect(x, y0 + 108, 10, 10, col))
         b.append(text(x + 14, y0 + 117, lab, color=C["muted"]))
 
@@ -588,12 +607,6 @@ def downstream():
     b.append(text(81, 422, "100", color=C["muted"], anchor="middle"))
     b.append(text(175, 422, "12", color=C["muted"], anchor="middle"))
     b.append(text(216, 389, "no filter", weight=700))
-    b += cmap(432, 356)
-    b.append(text(504, 385, "ARI", weight=700, anchor="middle"))
-    b += cmap(526, 356, {(2, 1)})
-    b.append(text(457, 422, "seed 0", color=C["muted"], anchor="middle"))
-    b.append(text(551, 422, "seed 1", color=C["muted"], anchor="middle"))
-    b.append(text(592, 389, "second seed", weight=700))
 
     cap = ("<b>Downstream consistency.</b> One section without injected damage is thinned to "
            "100 and 12 UMIs per bin, so tissue, cells and bins are identical and only the "
@@ -603,13 +616,12 @@ def downstream():
            "clusterings are compared square by square with the adjusted Rand index (ARI) over the "
            "32 µm squares present at both depths. Barcodes are shared, so nothing has to be "
            "registered. The no-filter arm gives the agreement that depth alone allows, which a "
-           "QC arm has to beat, and reclustering the same survivors with a new seed gives the "
-           "floor below which a difference is the clustering algorithm's.")
+           "QC arm has to beat.")
     return page("methods-downstream", "Materials and Methods · downstream consistency",
                 "Does the QC choice change what the clustering finds?",
                 "One section is thinned to 100 and 12 UMIs per bin, filtered by the same QC arm, "
                 "pooled to 32 µm and clustered, and the two clusterings are compared by adjusted "
-                "Rand index against a no-filter reference and a reseeding floor.",
+                "Rand index against a no-filter reference.",
                 464, "\n".join(b), cap)
 
 def marker():
@@ -741,8 +753,7 @@ if __name__ == "__main__":
             data = subprocess.check_output(["rsvg-convert", "-w", str(width), "-b", "white", svg])
             pixels_per_metre = round(600 / 0.0254)
             phys = struct.pack(">4sIIB", b"pHYs", pixels_per_metre, pixels_per_metre, 1)
-            # librsvg omits print density. Insert pHYs after the fixed-length IHDR.
             chunk = struct.pack(">I", 9) + phys + struct.pack(">I", zlib.crc32(phys))
             with open(png, "wb") as file:
                 file.write(data[:33] + chunk + data[33:])
-        print("wrote", p, "and .svg")
+        print("wrote", p, "and .svg", "and .png" if shutil.which("rsvg-convert") else "")
