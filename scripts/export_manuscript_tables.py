@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the manuscript tables and optionally package its final figures and CSVs."""
+"""Export the manuscript tables and optionally package its final figures and tables."""
 import argparse
 import csv
 from pathlib import Path
@@ -61,74 +61,25 @@ def table_rows(number, caption, body):
     return [header, *rows]
 
 
-def section_test_rows(report):
-    header = [
-        "Chemistry", "Analysis", "Context", "Section or comparison",
-        "Signal loss 32 µm", "Signal loss 64 µm", "Signal loss 256 µm",
-        "Mito. elevation 32 µm", "Mito. elevation 64 µm", "Mito. elevation 256 µm",
-        "100 UMIs/bin", "50 UMIs/bin", "25 UMIs/bin", "12 UMIs/bin", "Result",
-    ]
-    rows = [header]
-    chemistry = analysis = context = ""
-    # ponytail: Table S1 has several layouts. Keep paired-test summaries as text so
-    # every count and qualifier survives. Export structured tests directly from 82
-    # if individual summary values later need to be queried.
-    for line in report.splitlines():
-        value = line.strip()
-        if not value or value.startswith("##") or line.startswith(("section  ", "test  ")):
-            continue
-        if line.startswith("# "):
-            chemistry = value.removeprefix("# ").removesuffix(" sections")
-            continue
-        if line.startswith(("Neighbourhood test", "Section-wide test", "Region test",
-                            "False-positive rate (%)")):
-            analysis, context = value, ""
-            continue
-        if line.startswith("  ") and not line.startswith("   "):
-            context = value.rstrip(":")
-            continue
-
-        cells = re.split(r" {2,}", value)
-        best_bins = [""] * 6
-        by_depth = [""] * 4
-        if ": best bin size " in analysis and not line.startswith(" "):
-            label, *best_bins = cells
-            assert len(best_bins) == 6, line
-            result = ""
-        elif analysis.startswith("Region test") and " bins," in value:
-            label, rest = value.split(":", 1)
-            rates, result = rest.strip().split("; ", 1)
-            by_depth = re.split(r" {2,}", rates)
-            assert len(by_depth) == 4, line
-        elif analysis.startswith("False-positive rate") and len(cells) == 7:
-            test, size, *by_depth, result = cells
-            label = f"{test}, {size}"
-        else:
-            label, result = re.split(r" {2,}|: ", value, maxsplit=1)
-        assert chemistry and analysis, line
-        rows.append([chemistry, analysis, context, label, *best_bins, *by_depth, result])
-    assert len(rows) > 1 and all(len(row) == len(header) for row in rows)
-    return rows
-
-
 def export_final(tables, destination):
     table_csvs = {
         f"table{number}.csv": table_rows(number, caption, body)
         for number, (caption, body, _) in tables.items()
     }
-    table_csvs["tableS1.csv"] = section_test_rows((OUT / "tableS1.txt").read_text(encoding="utf-8"))
     with TemporaryDirectory(dir=destination.parent) as directory:
         staging = Path(directory)
         for figure in FIGURES:
             source = ROOT / "methods_diagrams" if figure in DIAGRAMS else OUT
             name = f"{figure}.png"
             copyfile(source / name, staging / name)
+        copyfile(OUT / "tableS1.txt", staging / "tableS1.txt")
         for name, rows in table_csvs.items():
-            with (staging / name).open("w", encoding="utf-8", newline="") as file:
+            with (staging / name).open("w", encoding="utf-8-sig", newline="") as file:
                 csv.writer(file).writerows(rows)
         destination.mkdir(exist_ok=True)
         for path in staging.iterdir():
             path.replace(destination / path.name)
+        (destination / "tableS1.csv").unlink(missing_ok=True)
 
 
 def main():
@@ -138,7 +89,7 @@ def main():
     parser.add_argument("--supplement", type=Path, default=ROOT / "docs" / "supplementary_draft.md",
                         help="supplementary Markdown (default: docs/supplementary_draft.md)")
     parser.add_argument("--final-output", action="store_true",
-                        help="write only the final PNGs and CSVs to figures/final_output")
+                        help="write the final PNGs, CSVs and Table S1 TXT to figures/final_output")
     args = parser.parse_args()
     for flag, draft in (("--manuscript", args.manuscript), ("--supplement", args.supplement)):
         if not draft.is_file():
