@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from functools import partial
 import math
 import os
 import shutil
@@ -159,6 +160,7 @@ def page(slug, eyebrow, title, desc, h, body, caption, defs=""):
 """
 
 def overview():
+    label = partial(text, size=14)
     b = []
     b += [path([(256, 114), (292, 114)]), path([(508, 114), (544, 114)]),
           path([(652, 188), (652, 220)]), path([(400, 368), (400, 400)]),
@@ -176,52 +178,52 @@ def overview():
         b.append(rect(sx, 80, 52, 52, C["paper"], C["soft"], 1, rx=2))
         b.append(f'<path d="{blobs[k].format(x=sx, y=80)}" fill="{TISSUE}" stroke="{C["soft"]}" '
                  f'stroke-width="0.8"/>')
-        b.append(text(sx + 26, 148, lab, color=C["muted"], anchor="middle", node="sections"))
-    b.append(text(148, 172, "public, human and mouse", color=C["muted"], anchor="middle",
-                  node="sections"))
+        b.append(label(sx + 26, 148, lab, color=C["muted"], anchor="middle", node="sections"))
+    b.append(label(148, 172, "public, human and mouse", color=C["muted"], anchor="middle",
+                   node="sections"))
 
     b += shell(292, 40, 216, 148, "Depth control", node="depth")
     for k, dep in enumerate((100, 50, 25, 12)):
         h = round(52 * dep / 100)
         b.append(rect(328 + 40 * k, 132 - h, 24, h, C["muted"]))
-        b.append(text(340 + 40 * k, 148, str(dep), color=C["muted"], anchor="middle", node="depth"))
-    b.append(text(400, 172, "UMIs per bin", color=C["muted"], anchor="middle", node="depth"))
+        b.append(label(340 + 40 * k, 148, str(dep), color=C["muted"], anchor="middle", node="depth"))
+    b.append(label(400, 172, "UMIs per bin", color=C["muted"], anchor="middle", node="depth"))
 
     b += shell(544, 40, 216, 148, "Synthetic LQRs", node="lqr")
     for cx, r, lab in ((588, 3.25, "32"), (616, 6.5, "64"), (668, 26, "256 µm")):
         b.append(f'<circle cx="{cx}" cy="106" r="{r}" fill="{DMG_TINT}" stroke="{DMG}" '
                  f'stroke-width="1"/>')
-        b.append(text(cx, 148, lab, color=C["muted"], anchor="middle", node="lqr"))
+        b.append(label(cx, 148, lab, color=C["muted"], anchor="middle", node="lqr"))
     b.append(rect(716, 96, 20, 20, TISSUE, rx=3))
-    b.append(text(726, 148, "none", color=C["muted"], anchor="middle", node="lqr"))
-    b.append(text(652, 172, "signal loss or mito. elevation", color=C["muted"], anchor="middle",
-                  node="lqr"))
+    b.append(label(726, 148, "none", color=C["muted"], anchor="middle", node="lqr"))
+    b.append(label(652, 172, "signal loss or mito. elevation", color=C["muted"], anchor="middle",
+                   node="lqr"))
 
     b += shell(40, 220, 720, 148, "Each QC method, run two ways", node="qc")
-    b.append(text(400, 266, "MAD, SpotSweeper, miQC, SpatialArtifacts", color=C["muted"],
-                  anchor="middle", node="qc"))
+    b.append(label(400, 266, "MAD, SpotSweeper, miQC, SpatialArtifacts", color=C["muted"],
+                   anchor="middle", node="qc"))
     b.append(rect(56, 280, 328, 76, C["link_tint"], rx=6))
     b.append(rect(416, 280, 328, 76, C["accent_tint"], rx=6))
-    b.append(text(68, 298, "Native", weight=700, node="qc"))
-    b.append(text(428, 298, "A&P", weight=700, node="qc"))
+    b.append(label(68, 298, "Native", weight=700, node="qc"))
+    b.append(label(428, 298, "A&P", weight=700, node="qc"))
     nat = {(1, 1), (1, 2), (3, 3)}
     b += grid(156, 290, 5, 5, 8)
     b.append(mini_arrow(200, 236, 310, C["link"], "arrow-link"))
-    b.append(text(218, 302, "QC", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(218, 302, "QC", color=C["muted"], anchor="middle", node="qc"))
     b += grid(240, 290, 5, 5, 8, lambda i, j: C["link"] if (i, j) in nat else C["paper"])
-    b.append(text(176, 346, "8 µm bins", color=C["muted"], anchor="middle", node="qc"))
-    b.append(text(260, 346, "8 µm verdict", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(176, 346, "8 µm bins", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(260, 346, "8 µm verdict", color=C["muted"], anchor="middle", node="qc"))
     b += grid(472, 290, 4, 4, 10)
     b.append(mini_arrow(516, 556, 310, C["accent"], "arrow-accent"))
-    b.append(text(536, 302, "sum", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(536, 302, "sum", color=C["muted"], anchor="middle", node="qc"))
     b += grid(560, 290, 2, 2, 20, lambda i, j: C["accent"] if (i, j) == (0, 1) else C["paper"])
     b.append(mini_arrow(604, 644, 310, C["accent"], "arrow-accent"))
-    b.append(text(624, 302, "project", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(624, 302, "project", color=C["muted"], anchor="middle", node="qc"))
     b += grid(648, 290, 4, 4, 10,
               lambda i, j: C["accent"] if i < 2 and j >= 2 else C["paper"])
-    b.append(text(492, 346, "8 µm bins", color=C["muted"], anchor="middle", node="qc"))
-    b.append(text(580, 346, "large-bin QC", color=C["muted"], anchor="middle", node="qc"))
-    b.append(text(668, 346, "8 µm verdict", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(492, 346, "8 µm bins", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(580, 346, "large-bin QC", color=C["muted"], anchor="middle", node="qc"))
+    b.append(label(668, 346, "8 µm verdict", color=C["muted"], anchor="middle", node="qc"))
 
     b += shell(40, 400, 720, 56, "", "store", "verdict")
     b.append(text(60, 434, "Verdict on the same 8 µm bins", NAME, weight=700, node="verdict"))
@@ -232,36 +234,45 @@ def overview():
             b.append(cross(x + 7, 428, 4))
     b.append(rect(660, 412, 12, 12, C["paper"], C["rule_solid"], 0.8))
     b.append(cross(666, 418, 3.5))
-    b.append(text(680, 422, "removed", color=C["muted"], node="verdict"))
+    b.append(label(680, 422, "removed", color=C["muted"], node="verdict"))
     b.append(rect(660, 432, 12, 12, C["paper"], C["rule_solid"], 0.8))
-    b.append(text(680, 442, "kept", color=C["muted"], node="verdict"))
+    b.append(label(680, 442, "kept", color=C["muted"], node="verdict"))
 
     b += shell(40, 488, 216, 152, "Scoring", node="score")
-    inj = {(i, j) for i in range(7) for j in range(7) if (i - 3) ** 2 + (j - 3) ** 2 <= 4}
-    missed, fp = {(1, 3), (3, 5), (5, 3)}, {(0, 6), (6, 0)}
-    b += grid(113, 524, 7, 7, 10, lambda i, j: DMG_TINT if (i, j) in inj else C["paper"])
-    b.append(f'<circle cx="148" cy="559" r="20" fill="none" stroke="{DMG}" stroke-width="1" '
+    recall_x, fpr_x, grid_y, cell = 64, 160, 530, 8
+    injected = {(i, j) for i in range(7) for j in range(7) if (i - 3) ** 2 + (j - 3) ** 2 <= 4}
+    missed = {(1, 3), (3, 1), (3, 5), (5, 3)}
+    b += grid(recall_x, grid_y, 7, 7, cell,
+              lambda i, j: DMG_TINT if (i, j) in injected else C["paper"])
+    b.append(f'<circle cx="{recall_x + 3.5 * cell:g}" cy="{grid_y + 3.5 * cell:g}" r="17.5" '
+             f'fill="none" stroke="{DMG}" stroke-width="1" '
              f'stroke-dasharray="3,2"/>')
-    for i, j in (inj - missed) | fp:
-        b.append(cross(113 + 10 * j + 5, 524 + 10 * i + 5, 3))
-    b.append(text(148, 622, "recall and false-positive rate", color=C["muted"], anchor="middle", node="score"))
+    for i, j in sorted(injected - missed):
+        b.append(cross(recall_x + cell * (j + 0.5), grid_y + cell * (i + 0.5), 2.4))
+    b += grid(fpr_x, grid_y, 7, 7, cell)
+    for i, j in ((0, 6), (3, 2), (6, 0)):
+        b.append(cross(fpr_x + cell * (j + 0.5), grid_y + cell * (i + 0.5), 2.4))
+    b.append(label(recall_x + 3.5 * cell, 606, "Recall", weight=700, anchor="middle", node="score"))
+    b.append(label(fpr_x + 3.5 * cell, 606, "False-positive rate", weight=700, anchor="middle", node="score"))
+    b.append(label(recall_x + 3.5 * cell, 624, "Injected LQR", color=C["muted"], anchor="middle", node="score"))
+    b.append(label(fpr_x + 3.5 * cell, 624, "Uninjected", color=C["muted"], anchor="middle", node="score"))
 
     b += shell(292, 488, 216, 152, "Marker check", node="marker")
     b.append(rect(356, 548, 24, 30, C["paper"], C["muted"], 1))
     b.append(rect(420, 528, 24, 50, C["muted"]))
     b.append(text(400, 560, "÷", NAME, weight=700, anchor="middle", node="marker"))
-    b.append(text(368, 594, "removed", color=C["muted"], anchor="middle", node="marker"))
-    b.append(text(432, 594, "kept", color=C["muted"], anchor="middle", node="marker"))
+    b.append(label(368, 594, "removed", color=C["muted"], anchor="middle", node="marker"))
+    b.append(label(432, 594, "kept", color=C["muted"], anchor="middle", node="marker"))
 
     b += shell(544, 488, 216, 152, "Clustering agreement", node="down")
     m100 = lambda i, j: SERIES[0] if j < 2 else (SERIES[1] if i < 3 else SERIES[2])
     diff = {(2, 2), (3, 1), (4, 3)}
     m12 = lambda i, j: SERIES[2] if (i, j) in diff else m100(i, j)
-    b += grid(590, 526, 5, 5, 10, m100, C["paper"], 0.6)
-    b += grid(664, 526, 5, 5, 10, m12, C["paper"], 0.6)
-    b.append(text(652, 555, "ARI", weight=700, anchor="middle", node="down"))
-    b.append(text(615, 592, "100", color=C["muted"], anchor="middle", node="down"))
-    b.append(text(689, 592, "12", color=C["muted"], anchor="middle", node="down"))
+    b += grid(585, 526, 5, 5, 10, m100, C["paper"], 0.6)
+    b += grid(669, 526, 5, 5, 10, m12, C["paper"], 0.6)
+    b.append(label(652, 555, "ARI", weight=700, anchor="middle", node="down"))
+    b.append(label(610, 592, "100", color=C["muted"], anchor="middle", node="down"))
+    b.append(label(694, 592, "12", color=C["muted"], anchor="middle", node="down"))
 
     b += shell(220, 672, 360, 88, "Section-level inference", node="infer")
     for k in range(9):
@@ -271,23 +282,24 @@ def overview():
                  f'stroke="{C["ink"]}" stroke-width="1"/>')
 
     cap = ("<b>Study design.</b> Public Visium HD sections, probe-based and 3′ polyA, are "
-           "thinned to four common depths, and synthetic low-quality regions (LQRs) of three "
-           "diameters are added once to the 8 µm counts of each run (one section at one "
-           "depth). Every QC method is run natively on the 8 µm grid and through "
+           "thinned to four common depths. Each section and depth has injected conditions "
+           "with synthetic low-quality regions (LQRs) of three diameters and an uninjected "
+           "control. Every QC method is run natively on the 8 µm grid and through "
            "aggregate-and-project (A&amp;P), which sums bins, runs the method on the large "
            "bins and projects its verdict back to 8 µm, so both routes return a verdict on the "
-           "same 8 µm bins. The verdict is judged three ways: against the injected regions "
-           "(recall and nominal false-positive rate), by the marker share of removed against "
-           "kept bins on uninjected tissue matched for tile and library size, and by the "
-           "adjusted Rand index (ARI) between clusterings of one section at 100 and 12 UMIs "
-           "per bin. Sections are the unit of inference, and every test is made within one "
-           "chemistry.")
+           "same 8 µm bins. Scoring measures recall as the share of injected LQR bins removed "
+           "and the false-positive rate as the share of in-tissue bins removed on the "
+           "uninjected condition. The marker check compares marker shares in removed and "
+           "kept bins on uninjected tissue matched for tile and library size. Clustering "
+           "agreement uses the adjusted Rand index (ARI) between clusterings of one section at 100 and 12 "
+           "UMIs per bin on uninjected tissue. Sections are the unit of inference, and "
+           "every test is made within one chemistry.")
     return page("methods-overview", "Materials and Methods · study design",
                 "From public sections to a section-level test",
                 "Workflow: public Visium HD sections are depth-controlled and given synthetic "
                 "damage, every QC method is run natively and through A&P onto the same 8 µm "
-                "bins, and the verdict is judged by scoring, a marker check and clustering "
-                "agreement before a section-level test.",
+                "bins. Recall is scored on injected LQR bins and the false-positive rate on "
+                "uninjected tissue. Marker and clustering checks also inform section-level inference.",
                 800, "\n".join(b), cap)
 
 def nearest(n, ci, cj, k):
