@@ -131,8 +131,8 @@ def main():
     plt.rcParams.update({"font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.3,
                          "ytick.labelsize": 6.5, "legend.fontsize": 6.8,
                          "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42})
-    fig = plt.figure(figsize=(W, 9.3))
-    outer = fig.add_gridspec(2, 1, height_ratios=[4.9, 4.4], hspace=0.14)
+    fig = plt.figure(figsize=(W, 9.6))
+    outer = fig.add_gridspec(2, 1, height_ratios=[4.9, 4.4], hspace=0.30)
     map_axs, map_stats = maps(fig, outer[0], a.labels, a.summary, a.grid)
     inner = outer[1].subgridspec(len(P.CHEMS), 2, width_ratios=[len(cols), len(ARMS)],
                                  wspace=0.32, hspace=0.12)
