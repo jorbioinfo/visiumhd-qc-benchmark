@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, os
+import argparse, importlib.util, os
 import numpy as np, pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -18,6 +18,59 @@ ARMS = [("02_mad_8um", "native\n8 µm", "#2a78d6"),
         (P.SPATIALARTIFACTS[16], "+ A&P\n16 µm", "#eb6834")]
 GROUPS = [("MAD", 0, 1), ("SpotSweeper", 2, 3), ("SpatialArtifacts", 4, 5)]
 W = 7.2
+
+MAP_SECTION = "Visium_HD_Human_Colon_Cancer"
+MAP_ARMS = [("01_no_qc", "No filter"), ("02_mad_8um", "MAD, native 8 µm bins"),
+            ("10_mad_64um", "MAD + A&P, 64 µm bins")]
+MAP_DEPTHS = (100, 12)
+INK = "#1f2a24"
+
+def maps_module():
+    spec = importlib.util.spec_from_file_location(
+        "maps122", os.path.join(os.path.dirname(os.path.abspath(__file__)), "122_demo_downstream_maps.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+def maps(fig, cell, labels, summary):
+    M = maps_module()
+    df = pd.read_csv(labels, dtype={"label": str})
+    sm = pd.read_csv(summary).query("section == @MAP_SECTION").set_index("arm")
+    allsq = pd.Index(sorted(set(df[df.arm == REF[0]].square)))
+    r, c = M.rc_of(allsq)
+    R, C = r.max() + 1, c.max() + 1
+    pos = {sq: (i, j) for sq, i, j in zip(allsq, r, c)}
+    pal = M.palette(df["label"].unique())
+    gs = cell.subgridspec(len(MAP_DEPTHS), len(MAP_ARMS), wspace=0.04, hspace=0.26)
+    axs = np.array([[fig.add_subplot(gs[i, j]) for j in range(len(MAP_ARMS))]
+                    for i in range(len(MAP_DEPTHS))])
+    rows = []
+    for j, (arm, name) in enumerate(MAP_ARMS):
+        for i, d in enumerate(MAP_DEPTHS):
+            s = df[(df.arm == arm) & (df.depth == d)].set_index("square")["label"]
+            im = np.full((R, C, 4), 1.0)
+            for sq in allsq:
+                im[pos[sq]] = (0.80, 0.80, 0.80, 1)
+            for sq, v in s.items():
+                if sq in pos:
+                    im[pos[sq]] = pal[v]
+            ax = axs[i, j]
+            ax.imshow(im, interpolation="nearest")
+            removed = 100 * sm.loc[arm, f"removed_{d}"]
+            ax.set_title(f"{s.nunique()} clusters, {removed:.1f}% removed", fontsize=6.2,
+                         color=INK, pad=2.5)
+            ax.set_xticks([]); ax.set_yticks([])
+            for sp in ax.spines.values():
+                sp.set_visible(False)
+            rows.append(dict(section=MAP_SECTION, arm=arm, depth=d, clusters=s.nunique(),
+                             removed_pct=round(removed, 1), ari=sm.loc[arm, "ari"]))
+        axs[0, j].text(0.5, 1.2, name, transform=axs[0, j].transAxes, ha="center", va="bottom",
+                       fontsize=7, fontweight="bold", color=INK)
+        axs[-1, j].set_xlabel(f"ARI {sm.loc[arm, 'ari']:.3f}", fontsize=6.8, color=INK, labelpad=3)
+    for i, d in enumerate(MAP_DEPTHS):
+        axs[i, 0].set_ylabel(f"{d} UMIs\nper bin", fontsize=7, fontweight="bold", rotation=0,
+                             ha="right", va="center", labelpad=6, color=INK, linespacing=1.2)
+    return axs, pd.DataFrame(rows)
 
 def group_labels(ax, fig, off):
     base = transforms.blended_transform_factory(ax.transData, ax.transAxes)
@@ -41,6 +94,10 @@ def bars(ax, i, v, clr):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default="benchmark_grid/figures/downstream_binned.csv")
+    ap.add_argument("--labels", default="benchmark_grid/figures/demo_downstream/"
+                                        f"{MAP_SECTION}_labels.csv.gz",
+                    help="labels 122_demo_downstream_maps.py saved for the section of panel a")
+    ap.add_argument("--summary", default="benchmark_grid/figures/demo_downstream/summary.csv")
     ap.add_argument("--out", default="benchmark_grid/figures/fig4_clustering_agreement")
     a = ap.parse_args()
     d = pd.read_csv(a.csv).drop_duplicates(
@@ -53,8 +110,15 @@ def main():
     plt.rcParams.update({"font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.3,
                          "ytick.labelsize": 6.5, "legend.fontsize": 6.8,
                          "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42})
-    fig, ax = plt.subplots(len(P.CHEMS), 2, figsize=(W, 5.6), sharey="col",
-                           gridspec_kw={"width_ratios": [len(cols), len(ARMS)]})
+    fig = plt.figure(figsize=(W, 8.6))
+    outer = fig.add_gridspec(2, 1, height_ratios=[3.3, 5.3], hspace=0.16)
+    map_axs, map_stats = maps(fig, outer[0], a.labels, a.summary)
+    inner = outer[1].subgridspec(len(P.CHEMS), 2, width_ratios=[len(cols), len(ARMS)],
+                                 wspace=0.32, hspace=0.12)
+    ax = np.array([[fig.add_subplot(inner[r, k]) for k in range(2)] for r in range(len(P.CHEMS))])
+    for k in range(2):
+        for r in range(1, len(P.CHEMS)):
+            ax[r, k].sharey(ax[0, k])
     out, ns = [], {}
     for r, ch in enumerate(P.CHEMS):
         dc = d[d.chem == ch]
@@ -94,13 +158,17 @@ def main():
         x.set_axisbelow(True)
         for sp in ("top", "right"):
             x.spines[sp].set_visible(False)
-    fig.tight_layout(w_pad=2.5)
-    FS.letter_axes(fig, ax[0, 0], "a")
-    FS.letter_axes(fig, ax[0, 1], "b")
+    fig.tight_layout(h_pad=1.2, w_pad=2.5)
+    FS.letter_axes(fig, map_axs[0, 0], "a")
+    FS.letter_axes(fig, ax[0, 0], "b")
+    FS.letter_axes(fig, ax[0, 1], "c")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     for ext in ("png", "pdf", "svg"):
         fig.savefig(f"{a.out}.{ext}", dpi=600, bbox_inches="tight")
 
+    map_stats.to_csv(a.out + "_maps.csv", index=False)
+    print("panel a:")
+    print(map_stats.to_string(index=False))
     res = pd.concat(out)
     res.to_csv(a.out + "_stats.csv")
     print(res.round(3).to_string())
