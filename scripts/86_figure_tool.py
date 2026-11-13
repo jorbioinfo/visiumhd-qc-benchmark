@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse, os
 import numpy as np, pandas as pd
-from scipy import stats
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 from matplotlib.lines import Line2D
 
 import panel as P
@@ -13,25 +13,25 @@ COND = {"dropout01_256um": "Signal loss", "mito_256um": "Mitochondrial elevation
 DEPTHS = ((100, "100 UMIs per bin"), (12, "12 UMIs per bin"))
 TOOLS = {
     "MAD": {
-        "o": ("02_mad_8um", "native 8 µm bins"),
-        "*": ("10_mad_64um", "A&P, 64 µm bins"),
-        "^": ("35_mad_64um_excludepartial",
-              "A&P, 64 µm bins, partly covered bins left out")},
+        "native": ("02_mad_8um", "native 8 µm bins"),
+        "ap": ("10_mad_64um", "A&P, 64 µm bins"),
+        "third": ("35_mad_64um_excludepartial",
+                  "A&P, 64 µm bins, partly covered bins left out")},
     "miQC": {
-        "o": ("30_miqc_8um", "native 8 µm bins"),
-        "*": ("31_miqc_64um", "A&P, 64 µm bins")},
+        "native": ("30_miqc_8um", "native 8 µm bins"),
+        "ap": ("31_miqc_64um", "A&P, 64 µm bins")},
     "SpotSweeper": {
-        "o": (P.SPOTSWEEPER[8], "native 8 µm bins"),
-        "*": (P.SPOTSWEEPER[64], "A&P, 64 µm bins"),
-        "s": (P.WIDENED[64], "native 8 µm bins, 3072 neighbours")},
+        "native": (P.SPOTSWEEPER[8], "native 8 µm bins"),
+        "ap": (P.SPOTSWEEPER[64], "A&P, 64 µm bins"),
+        "third": (P.WIDENED[64], "native 8 µm bins, 3072 neighbours")},
     "SpatialArtifacts": {
-        "o": (P.SPATIALARTIFACTS[8], "native 8 µm bins"),
-        "*": (P.SPATIALARTIFACTS[16], "A&P, 16 µm bins")},
+        "native": (P.SPATIALARTIFACTS[8], "native 8 µm bins"),
+        "ap": (P.SPATIALARTIFACTS[16], "A&P, 16 µm bins")},
 }
 
-MARK = {"o": ("o", 5.4, False), "*": ("o", 6.0, True),
-        "s": ("s", 5.6, True), "^": ("^", 6.4, True)}
-CLR = {"o": "#2a78d6", "*": "#eb6834", "s": "#1baf7a", "^": "#1baf7a"}
+MS, DOT_ALPHA = 3.6, 0.45
+CLR = {"native": "#2a78d6", "ap": "#eb6834", "third": "#1baf7a"}
+ARROW_MIN_N, ARROW_MIN_RECALL, ARROW_MIN_FPR_RATIO = 5, 20.0, 4.0
 INK, INK2, MUTED, BASE = "#0b0b0b", "#52514e", "#898781", "#c3c2b7"
 XFLOOR, XCEIL = 0.08, 160.0
 NO_CONTRAST = {("mito_256um", P.PREFIX + s) for s in P.MITO_NO_CONTRAST}
@@ -48,24 +48,15 @@ def style():
         "figure.facecolor": "white", "axes.facecolor": "white",
     })
 
-ELLIPSE_MIN_N = 5
-
-def mean_ellipse(ax, pts, color):
-    n = len(pts)
-    if n < ELLIPSE_MIN_N:
-        return
-    mu = pts.mean(0)
-    S = np.cov(pts.T, ddof=1)
-    if not np.all(np.isfinite(S)) or np.linalg.det(S) <= 0:
-        return
-    scale = 2 * (n - 1) / (n * (n - 2)) * stats.f.ppf(0.95, 2, n - 2)
-    w, V = np.linalg.eigh(S * scale)
-    w = np.clip(w, 0, None)
-    t = np.linspace(0, 2 * np.pi, 128)
-    circ = np.stack([np.cos(t), np.sin(t)])
-    xy = (V @ (np.sqrt(w)[:, None] * circ)).T + mu
-    ax.fill(10 ** xy[:, 0], xy[:, 1], color=color, alpha=0.14, lw=0, zorder=2)
-    ax.plot(10 ** xy[:, 0], xy[:, 1], color=color, lw=0.7, alpha=.5, zorder=2)
+def arrow(ax, mu0, mu1, color):
+    if abs(mu1[1] - mu0[1]) < ARROW_MIN_RECALL and abs(mu1[0] - mu0[0]) < np.log10(ARROW_MIN_FPR_RATIO):
+        return False
+    ax.annotate("", xy=(10 ** mu1[0], mu1[1]), xytext=(10 ** mu0[0], mu0[1]),
+                arrowprops=dict(arrowstyle="-|>,head_length=0.55,head_width=0.26",
+                                mutation_scale=10, color=color, lw=1.6, shrinkA=0, shrinkB=0,
+                                path_effects=[pe.withStroke(linewidth=3.4, foreground="white")]),
+                zorder=8)
+    return True
 
 def cloud(df, arm, cond, depth, for_stats=False):
     g = df[(df.cond == cond) & (df.depth == depth) & (df.arm == arm)]
@@ -78,24 +69,17 @@ def cloud(df, arm, cond, depth, for_stats=False):
 
 def panel(ax, df, arms, cond, depth, dlabel, first_col, first_row):
     ns = {}
-    base = cloud(df, arms["o"][0], cond, depth, for_stats=True)
+    base = cloud(df, arms["native"][0], cond, depth, for_stats=True)
     for key, (arm, _lab) in arms.items():
         pts = cloud(df, arm, cond, depth)
         stat = cloud(df, arm, cond, depth, for_stats=True)
         ns[key] = len(stat)
         if not len(pts):
             continue
-        mean_ellipse(ax, stat, CLR[key])
-        if key != "o" and len(base) and len(stat):
-            mu0, mu1 = base.mean(0), stat.mean(0)
-            ax.annotate("", xy=(10 ** mu1[0], mu1[1]), xytext=(10 ** mu0[0], mu0[1]),
-                        arrowprops=dict(arrowstyle="-|>", color=CLR[key], lw=1.4,
-                                        shrinkA=6, shrinkB=7, alpha=.85), zorder=4)
-        m, ms, filled = MARK[key]
-        c = CLR[key]
-        ax.plot(10 ** pts[:, 0], pts[:, 1], m, ms=ms, ls="none", zorder=5 + (key != "o"),
-                mfc=c if filled else "white",
-                mec="white" if filled else c, mew=0.9 if filled else 1.3, alpha=.9)
+        if key != "native" and len(base) >= ARROW_MIN_N and len(stat) >= ARROW_MIN_N:
+            arrow(ax, base.mean(0), stat.mean(0), CLR[key])
+        ax.plot(10 ** pts[:, 0], pts[:, 1], "o", ms=MS, ls="none",
+                zorder=5 + (key != "native"), mfc=CLR[key], mec="none", alpha=DOT_ALPHA)
     ax.axvline(50, color=BASE, lw=0.7, zorder=1)
     ax.axhline(50, color=BASE, lw=0.7, zorder=1)
     ax.axvline(100, color=BASE, lw=0.7, ls=":", zorder=1)
@@ -134,12 +118,8 @@ def main():
                       color=INK)
         hs, ls = [], []
         for key, (_arm, lab) in arms.items():
-            m, ms, filled = MARK[key]
-            c = CLR[key]
-            hs.append(Line2D([], [], marker=m, ls="none", ms=ms,
-                             mfc=c if filled else "white",
-                             mec="white" if filled else c,
-                             mew=0.9 if filled else 1.3))
+            hs.append(Line2D([], [], marker="o", ls="none", ms=MS + 1.4, mfc=CLR[key],
+                             mec="none", alpha=0.75))
             ls.append(lab)
         lg = fig.legend(hs, ls, loc="lower center", ncol=len(hs), frameon=False,
                         handlelength=1.0, bbox_to_anchor=(0.5, 0.0))
@@ -154,12 +134,12 @@ def main():
 
     x_low, x_high = zip(*(fig.axes[0].get_xlim() for _, fig, _ in figures))
     xlim = (min(XFLOOR, *x_low), max(XCEIL, *x_high))
-    ylim = (-4, 106)
+    ylim = (-5, 105)
     for slug, fig, ns in figures:
         fig.axes[0].set(xlim=xlim, ylim=ylim)
         for ax in fig.axes:
-            left, _, right, _ = ax.dataLim.extents
-            assert xlim[0] < left <= right < xlim[1], slug
+            left, bottom, right, top = ax.dataLim.extents
+            assert xlim[0] < left <= right < xlim[1] and ylim[0] < bottom <= top < ylim[1], slug
         fig.tight_layout(rect=(0, 0.1, 1, 1), h_pad=1.0, w_pad=0.7)
         for ext in ("pdf", "png", "svg"):
             fig.savefig(os.path.join(a.outdir, f"recall_fpr_{slug}.{ext}"), bbox_inches="tight")
