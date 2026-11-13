@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import transforms
+from matplotlib.colors import ListedColormap
 
 import panel as P
 import figstyle as FS
@@ -32,44 +33,62 @@ def maps_module():
     spec.loader.exec_module(m)
     return m
 
-def maps(fig, cell, labels, summary):
+def maps(fig, cell, labels, summary, grid):
     M = maps_module()
     df = pd.read_csv(labels, dtype={"label": str})
     sm = pd.read_csv(summary).query("section == @MAP_SECTION").set_index("arm")
+    rem, _frac = M.removal(MAP_SECTION, grid)
     allsq = pd.Index(sorted(set(df[df.arm == REF[0]].square)))
     r, c = M.rc_of(allsq)
     R, C = r.max() + 1, c.max() + 1
     pos = {sq: (i, j) for sq, i, j in zip(allsq, r, c)}
     pal = M.palette(df["label"].unique())
-    gs = cell.subgridspec(len(MAP_DEPTHS), len(MAP_ARMS), wspace=0.04, hspace=0.26)
+    purples = plt.get_cmap("Purples")
+    nrow = len(MAP_DEPTHS) + 1
+    gs = cell.subgridspec(nrow, len(MAP_ARMS), wspace=0.04, hspace=0.26)
     axs = np.array([[fig.add_subplot(gs[i, j]) for j in range(len(MAP_ARMS))]
-                    for i in range(len(MAP_DEPTHS))])
+                    for i in range(nrow)])
+
+    def img(values, colour):
+        im = np.full((R, C, 4), 1.0)
+        for sq in allsq:
+            im[pos[sq]] = (0.80, 0.80, 0.80, 1)
+        for sq, v in values.items():
+            if sq in pos:
+                im[pos[sq]] = colour(v)
+        return im
+
     rows = []
     for j, (arm, name) in enumerate(MAP_ARMS):
         for i, d in enumerate(MAP_DEPTHS):
             s = df[(df.arm == arm) & (df.depth == d)].set_index("square")["label"]
-            im = np.full((R, C, 4), 1.0)
-            for sq in allsq:
-                im[pos[sq]] = (0.80, 0.80, 0.80, 1)
-            for sq, v in s.items():
-                if sq in pos:
-                    im[pos[sq]] = pal[v]
             ax = axs[i, j]
-            ax.imshow(im, interpolation="nearest")
+            ax.imshow(img(s, lambda v: pal[v]), interpolation="nearest")
             removed = 100 * sm.loc[arm, f"removed_{d}"]
             ax.set_title(f"{s.nunique()} clusters, {removed:.1f}% removed", fontsize=6.2,
                          color=INK, pad=2.5)
-            ax.set_xticks([]); ax.set_yticks([])
-            for sp in ax.spines.values():
-                sp.set_visible(False)
             rows.append(dict(section=MAP_SECTION, arm=arm, depth=d, clusters=s.nunique(),
                              removed_pct=round(removed, 1), ari=sm.loc[arm, "ari"]))
         axs[0, j].text(0.5, 1.2, name, transform=axs[0, j].transAxes, ha="center", va="bottom",
                        fontsize=7, fontweight="bold", color=INK)
-        axs[-1, j].set_xlabel(f"ARI {sm.loc[arm, 'ari']:.3f}", fontsize=6.8, color=INK, labelpad=3)
+        axs[1, j].set_xlabel(f"ARI {sm.loc[arm, 'ari']:.3f}", fontsize=6.8, color=INK, labelpad=3)
+        axs[2, j].imshow(img(rem[arm, MAP_DEPTHS[-1]], lambda v: purples(0.12 + 0.88 * v)),
+                         interpolation="nearest")
+    for ax in axs.ravel():
+        ax.set_xticks([]); ax.set_yticks([])
+        for sp in ax.spines.values():
+            sp.set_visible(False)
     for i, d in enumerate(MAP_DEPTHS):
         axs[i, 0].set_ylabel(f"{d} UMIs\nper bin", fontsize=7, fontweight="bold", rotation=0,
                              ha="right", va="center", labelpad=6, color=INK, linespacing=1.2)
+    axs[2, 0].set_ylabel(f"Removed at\n{MAP_DEPTHS[-1]} UMIs\nper bin", fontsize=7, fontweight="bold",
+                         rotation=0, ha="right", va="center", labelpad=6, color=INK, linespacing=1.2)
+    cax = axs[2, 1].inset_axes([0.1, -0.13, 0.8, 0.05])
+    cb = fig.colorbar(plt.cm.ScalarMappable(norm=plt.Normalize(0, 100), cmap=ListedColormap(
+        purples(np.linspace(0.12, 1, 256)))), cax=cax, orientation="horizontal")
+    cb.set_ticks([0, 50, 100]); cb.set_ticklabels(["0%", "50%", "100%"])
+    cb.set_label("share of the 32 µm square removed", fontsize=5.8, color=INK, labelpad=1.5)
+    cb.ax.tick_params(labelsize=5.6, colors=INK, length=1.5, pad=1); cb.outline.set_visible(False)
     return axs, pd.DataFrame(rows)
 
 def group_labels(ax, fig, off):
@@ -98,6 +117,8 @@ def main():
                                         f"{MAP_SECTION}_labels.csv.gz",
                     help="labels 122_demo_downstream_maps.py saved for the section of panel a")
     ap.add_argument("--summary", default="benchmark_grid/figures/demo_downstream/summary.csv")
+    ap.add_argument("--grid", default="benchmark_grid",
+                    help="the benchmark grid, for the share of each square removed in panel a")
     ap.add_argument("--out", default="benchmark_grid/figures/fig4_clustering_agreement")
     a = ap.parse_args()
     d = pd.read_csv(a.csv).drop_duplicates(
@@ -110,9 +131,9 @@ def main():
     plt.rcParams.update({"font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.3,
                          "ytick.labelsize": 6.5, "legend.fontsize": 6.8,
                          "axes.linewidth": 0.6, "pdf.fonttype": 42, "ps.fonttype": 42})
-    fig = plt.figure(figsize=(W, 8.6))
-    outer = fig.add_gridspec(2, 1, height_ratios=[3.3, 5.3], hspace=0.16)
-    map_axs, map_stats = maps(fig, outer[0], a.labels, a.summary)
+    fig = plt.figure(figsize=(W, 9.3))
+    outer = fig.add_gridspec(2, 1, height_ratios=[4.9, 4.4], hspace=0.14)
+    map_axs, map_stats = maps(fig, outer[0], a.labels, a.summary, a.grid)
     inner = outer[1].subgridspec(len(P.CHEMS), 2, width_ratios=[len(cols), len(ARMS)],
                                  wspace=0.32, hspace=0.12)
     ax = np.array([[fig.add_subplot(inner[r, k]) for k in range(2)] for r in range(len(P.CHEMS))])
