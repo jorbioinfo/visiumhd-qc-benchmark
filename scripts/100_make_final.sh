@@ -28,18 +28,20 @@ py /work/scripts/69_figure_binsize.py --stack 100 12 --metric recall --name fig2
 py /work/scripts/69_figure_binsize.py --stack 100 50 25 12 --metric f1 --overlay 256 \
   --name fig5_binsize_f1 2>&1 | grep -c wrote | sed "s/^/--- 69 Fig. 5: files written /"
 for s in scripts/63_figure_discarded.py scripts/91_figure_routes.py \
-         scripts/95_figure_downstream.py scripts/90_supp_figs.py scripts/61_figures_grid.py; do
+         scripts/90_supp_figs.py scripts/61_figures_grid.py; do
   echo "--- $s"
   py "/work/$s" 2>&1 | tail -3
 done
 demo_sections=(Visium_HD_Human_Colon_Cancer Visium_HD_Human_Kidney_FFPE
                Visium_HD_Human_Lung_Cancer Visium_HD_3prime_Human_Ovarian_Cancer)
-for section in "${demo_sections[@]}"; do
-  if [[ ! -s "$OUT/demo_downstream/$section.png" ]]; then
+for file in summary.csv "${demo_sections[0]}_labels.csv.gz" "${demo_sections[@]/%/.png}"; do
+  if [[ ! -s "$OUT/demo_downstream/$file" ]]; then
     py /work/scripts/122_demo_downstream_maps.py --sections "$(IFS=,; printf '%s' "${demo_sections[*]}")" || exit 1
     break
   fi
 done
+echo "--- scripts/95_figure_downstream.py"
+py /work/scripts/95_figure_downstream.py 2>&1 | tail -3 || exit 1
 py /work/scripts/146_molecule_curve.py > logs/146_molecule_curve.log || exit 1
 py /work/scripts/compose_figures.py 2>&1 | tail -9
 

@@ -100,7 +100,7 @@ The six-cancer sections are read from their Zenodo zip without downloading it wh
 
     python3 scripts/113_zenodo_extract.py visiumhd_Bladder.zip Visium_HD_SixCancer_Bladder_Cancer 297675
 
-For Figure 4, run downstream clustering once for each section scored at both 100 and
+For Figure 4b and 4c, run downstream clustering once for each section scored at both 100 and
 12 UMIs per bin. The command appends to `benchmark_grid/figures/downstream_binned.csv`.
 For example:
 
@@ -127,11 +127,25 @@ Score each of the resulting runs. For example, to score the embryo at 90 UMIs pe
     docker run --rm -v "$PWD":/work vhd-qc-benchmark /opt/pyenv/bin/python \
       /work/scripts/11_score_benchmark.py --benchmark "$run" --results "$run/results" --out "$run/scored"
 
-With the grid, downstream CSV and additional MAD runs in place, generate the figures and
-tables. This also builds the four S5 clustering maps if their source plots are missing.
-Install `rsvg-convert` on the host to export PNGs from the methods diagrams.
+With the scored grid, downstream CSV and additional MAD runs in place, generate the
+figures and tables. If the S5 source PNGs, the colon cancer clustering labels, or the
+shared `summary.csv` are missing, `122_demo_downstream_maps.py` rebuilds them from the
+uninjected 8 µm matrices and QC verdicts at 100 and 12 UMIs per bin before Figure 4 is
+drawn. Figure 4a uses the colon cancer labels and the shared summary. Install
+`rsvg-convert` on the host to export PNGs from the methods diagrams.
 
     IMG=vhd-qc-benchmark bash scripts/100_make_final.sh
+
+To assemble the manuscript's figure and table files, pass your local main and
+supplementary Markdown files to the exporter:
+
+    python3 scripts/export_manuscript_tables.py \
+      --manuscript /path/to/manuscript_draft.md \
+      --supplement /path/to/supplementary_draft.md \
+      --final-output
+
+This writes the manuscript PNGs, UTF-8 CSVs with a byte-order mark, and the original
+`tableS1.txt` to `benchmark_grid/figures/final_output`.
 
 ## Reproducing the deposited runs exactly
 
