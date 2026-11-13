@@ -16,9 +16,7 @@ LABEL = {"scuttle MAD": "MAD threshold"}
 KINDS = [("mito", "Mitochondrial elevation"), ("dropout01", "Signal loss")]
 DIAMS = (32.0, 64.0, 256.0)
 DIAM_COL = {32.0: "#2a78d6", 64.0: "#1baf7a", 256.0: "#eb6834"}
-DIAM_MK = {32.0: "o", 64.0: "s", 256.0: "^"}
-DEPTH_COL = {100: "#0d2b55", 50: "#1f4f8e", 25: "#3570b8", 12: "#5a8fd6"}
-DEPTH_MK = {100: "o", 50: "s", 25: "^", 12: "D"}
+DEPTH_COL = {100: "#0d2b55", 50: "#1b9e77", 25: "#d95f02", 12: "#7570b3"}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#d8d7d2"
 
 def style():
@@ -58,9 +56,7 @@ def block(sf, frames, depth, metric, drop=(), header=True, rows=None):
                 q1, q3 = np.nanpercentile(per, 25, axis=0), np.nanpercentile(per, 75, axis=0)
                 col = DIAM_COL[diam]
                 ax.fill_between(BINS, q1, q3, color=col, alpha=.12, lw=0)
-                ax.plot(BINS, m, color=col, lw=1.8, marker=DIAM_MK[diam], ms=4.5,
-                        mec="white", mew=.8, zorder=5,
-                        label=f"{int(diam)} µm LQR")
+                ax.plot(BINS, m, color=col, lw=1.8, zorder=5, label=f"{int(diam)} µm LQR")
                 if rows is not None:
                     for b, v in zip(BINS, m):
                         rows.append(dict(depth=depth, chem=ch, damage=kind, tool=t,
@@ -131,11 +127,8 @@ def overlay(grid, out, depths, metric, diam):
                 per = np.array([[score(fr[d], ARMS[t].get(b), kind, diam, metric) for b in BINS]
                                 for d in ds], float)
                 m = np.nanmedian(per, axis=0)
-                q1, q3 = np.nanpercentile(per, 25, axis=0), np.nanpercentile(per, 75, axis=0)
                 col = DEPTH_COL[depth]
-                ax.fill_between(BINS, q1, q3, color=col, alpha=.10, lw=0)
-                ax.plot(BINS, m, color=col, lw=1.6, marker=DEPTH_MK[depth], ms=4,
-                        mec="white", mew=.7, zorder=5, label=f"{depth} UMIs per bin")
+                ax.plot(BINS, m, color=col, lw=1.8, zorder=5, label=f"{depth} UMIs per bin")
                 for b, v in zip(BINS, m):
                     rows.append(dict(depth=depth, chem=ch, damage=kind, tool=t, lesion_um=diam,
                                      qc_bin_um=b, metric=metric, value=v, n=per.shape[0]))

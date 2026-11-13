@@ -100,15 +100,38 @@ The six-cancer sections are read from their Zenodo zip without downloading it wh
 
     python3 scripts/113_zenodo_extract.py visiumhd_Bladder.zip Visium_HD_SixCancer_Bladder_Cancer 297675
 
-Then the downstream clustering, one section at a time (100 against 12 UMIs per bin):
+For Figure 4, run downstream clustering once for each section scored at both 100 and
+12 UMIs per bin. The command appends to `benchmark_grid/figures/downstream_binned.csv`.
+For example:
 
     docker run --rm -v "$PWD":/work vhd-qc-benchmark /opt/pyenv/bin/python \
       /work/scripts/94_downstream_binned.py --section Visium_HD_Mouse_Embryo --bin 32 \
-      --arms 01_no_qc,02_mad_8um,10_mad_64um,03_spotsweeper_8um,24_spotsweeper_8um_k48
+      --arms 01_no_qc,02_mad_8um,10_mad_64um,24_spotsweeper_8um_k48,27_spotsweeper_64um_k48,19_spatialartifacts_8um,20_spatialartifacts_16um
 
-and, once every run is scored, every figure, table and number:
+Figure S9 also uses uninjected MAD runs at 13 additional depths. For each section, build
+those runs from its native `binned_outputs`. The builder skips target depths above the
+section's native depth:
 
-    bash scripts/100_make_final.sh
+    section=Visium_HD_Mouse_Embryo
+    docker run --rm -v "$PWD":/work vhd-qc-benchmark /opt/pyenv/bin/python \
+      /work/scripts/145_molecule_curve_build.py --src "/work/public/$section/binned_outputs" \
+      --out-root /work/benchmark_molcurve --name "$section" \
+      --depths 200 90 80 70 60 22 20 18 15 6 5 4 3
+
+Score each of the resulting runs. For example, to score the embryo at 90 UMIs per bin:
+
+    run=/work/benchmark_molcurve/Visium_HD_Mouse_Embryo_d90
+    docker run --rm -v "$PWD":/work vhd-qc-benchmark Rscript \
+      /work/scripts/12_run_arms_k48all.R --benchmark "$run" --conds clean \
+      --arms 02_mad_8um,08_mad_16um,09_mad_32um,10_mad_64um
+    docker run --rm -v "$PWD":/work vhd-qc-benchmark /opt/pyenv/bin/python \
+      /work/scripts/11_score_benchmark.py --benchmark "$run" --results "$run/results" --out "$run/scored"
+
+With the grid, downstream CSV and additional MAD runs in place, generate the figures and
+tables. This also builds the four S5 clustering maps if their source plots are missing.
+Install `rsvg-convert` on the host to export PNGs from the methods diagrams.
+
+    IMG=vhd-qc-benchmark bash scripts/100_make_final.sh
 
 ## Reproducing the deposited runs exactly
 

@@ -24,7 +24,6 @@ INK, INK2, GRID = "#0b0b0b", "#52514e", "#d8d7d2"
 DIAMS = (32.0, 64.0, 256.0)
 DEPTHS = (100, 50, 25, 12)
 
-
 def style():
     plt.rcParams.update({
         "pdf.fonttype": 42, "ps.fonttype": 42, "savefig.dpi": 600,
@@ -35,7 +34,6 @@ def style():
         "xtick.major.width": 0.6, "ytick.major.width": 0.6,
         "figure.facecolor": "white", "axes.facecolor": "white"})
 
-
 def load_grid(root):
     scores, markers = {d: {} for d in DEPTHS}, {d: {} for d in DEPTHS}
     for ds, dep, cell in P.cells(root, DEPTHS):
@@ -44,7 +42,6 @@ def load_grid(root):
         if os.path.exists(mk):
             markers[dep][ds] = pd.read_csv(mk)
     return scores, markers
-
 
 def paired(a, b):
     a, b = np.asarray(a, float), np.asarray(b, float)
@@ -55,7 +52,6 @@ def paired(a, b):
     if len(a) < 3 or not len(d):
         return np.nan
     return stats.binomtest(int((d > 0).sum()), len(d), 0.5).pvalue
-
 
 def holm(ps):
     ps = np.asarray(ps, float)
@@ -68,18 +64,15 @@ def holm(ps):
         out[i] = run
     return out
 
-
 def stars(p):
     if not np.isfinite(p):
         return ""
     return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
 
-
 def recall_pct(df, arm, kind, diam):
     q = (df.arm == arm) & (df["kind"] == kind) & (df.diameter_um == diam)
     v = df.loc[q, "recall"]
     return v.iloc[0] * 100 if len(v) else np.nan
-
 
 def fp_pct(df, arm, kind, diam):
     q = (df.arm == arm) & (df["kind"] == kind) & (df.diameter_um == diam)
@@ -89,27 +82,26 @@ def fp_pct(df, arm, kind, diam):
     den = r.n_total.iloc[0] - r.n_truth.iloc[0]
     return 100.0 * r.fp.iloc[0] / den if den > 0 else np.nan
 
-
 def marker_ratio(mdf, arm):
     if mdf is None:
         return np.nan
     r = mdf.loc[mdf.arm == arm, "ratio_matched"]
     return r.iloc[0] if len(r) else np.nan
 
-
 KEY_NATIVE, KEY_AD = "native 8 µm bins", "A&P, 64 µm bins (16 µm for SpatialArtifacts)"
 
-
 def grid_figure(scores, markers, metric, title, ylab, out, annotate_marker=False,
-                ylim=None, key=True, tools=TOOLS):
+                ylim=None, key=True, tools=TOOLS, diams=DIAMS):
     names = list(tools)
     x = np.arange(len(names)); w = 0.34
     off_lo, off_hi = -w / 2 - 0.015, w / 2 + 0.015
-    fig, axs = plt.subplots(len(DIAMS), len(DEPTHS),
-                            figsize=(7.2, 5.25 if annotate_marker else 4.9), sharey="row")
+    fig, axs = plt.subplots(len(diams), len(DEPTHS),
+                            figsize=(7.2, (5.25 if annotate_marker else 4.9) if len(diams) > 1
+                                     else 2.6),
+                            sharey="row", squeeze=False)
     rows_out = []
     fp_top = 0.0
-    for i, diam in enumerate(DIAMS):
+    for i, diam in enumerate(diams):
         for j, dep in enumerate(DEPTHS):
             ax = axs[i, j]
             ds = sorted(scores.get(dep, {}))
@@ -158,18 +150,18 @@ def grid_figure(scores, markers, metric, title, ylab, out, annotate_marker=False
                         ax.text(xi, dy, f"{np.median(vals):.2f}" if vals else "n.d.",
                                 transform=ax.get_xaxis_transform(), ha="center",
                                 va="top", fontsize=5.4, color=col)
-                if i == len(DIAMS) - 1:
+                if i == len(diams) - 1:
                     ax.tick_params(axis="x", pad=13)
             if i == 0:
                 ax.set_title(f"{dep} UMIs per bin", pad=5, color=INK)
             if j == 0:
-                ax.set_ylabel(f"{int(diam)} µm LQR\n{ylab}", fontsize=7,
-                              fontweight="bold")
+                ax.set_ylabel((f"{int(diam)} µm LQR\n" if len(diams) > 1 else "") + ylab,
+                              fontsize=7, fontweight="bold")
             ax.yaxis.grid(True, color=GRID, lw=0.5, zorder=0); ax.set_axisbelow(True)
             if ylim:
                 ax.set_ylim(*ylim)
             ax.set_xticks(x)
-            if i == len(DIAMS) - 1:
+            if i == len(diams) - 1:
                 ax.set_xticklabels([LABEL.get(n, n) for n in names], rotation=45, ha="right", rotation_mode="anchor",
                                    fontsize=6.2)
             else:
@@ -188,7 +180,6 @@ def grid_figure(scores, markers, metric, title, ylab, out, annotate_marker=False
         print("wrote", f"{out}.{ext}")
     plt.close(fig)
     pd.DataFrame(rows_out).to_csv(f"{out}_stats.csv", index=False)
-
 
 def main():
     global KIND
@@ -224,8 +215,7 @@ def main():
                     "Tissue discarded outside the injected LQRs "
                     "(upper bound on error: assumes only injected bins are damaged)" + lab,
                     "False-positive rate (%)", os.path.join(a.outdir, "false_positive_rate" + tag),
-                    annotate_marker=True, key=last, tools=COST_TOOLS)
-
+                    annotate_marker=True, key=last, tools=COST_TOOLS, diams=(256.0,))
 
 if __name__ == "__main__":
     main()

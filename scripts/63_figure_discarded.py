@@ -202,10 +202,10 @@ def figure(scores, markers, out, key=True):
 def depth_trend(scores, out):
     names = list(TOOLS)
     x = np.arange(len(DEPTHS))
-    fig, axs = plt.subplots(len(P.CHEMS), len(names), figsize=(7.2, 4.9), sharey=True)
-    top = max((discard_pct(scores[d][ds], TOOLS[t][sl])
-               for d in DEPTHS for ds in scores.get(d, {})
-               for t in names for sl in (0, 1)), default=1.0)
+    fig, axs = plt.subplots(len(P.CHEMS), len(names), figsize=(7.2, 4.9), sharey="col")
+    tops = {t: max((discard_pct(scores[d][ds], TOOLS[t][sl])
+                    for d in DEPTHS for ds in scores.get(d, {}) for sl in (0, 1)), default=1.0)
+            for t in names}
     nper = {}
     for r, ch in enumerate(P.CHEMS):
         for i, t in enumerate(names):
@@ -226,12 +226,12 @@ def depth_trend(scores, out):
                         zorder=5, label=lab)
                 if np.isfinite(m[-1]):
                     ends.append((m[-1], col))
-            if len(ends) == 2 and abs(ends[0][0] - ends[1][0]) < 0.06 * max(top, 1.0):
+            if len(ends) == 2 and abs(ends[0][0] - ends[1][0]) < 0.06 * max(tops[t], 1.0):
                 ends = [(ends[0][0], ends[0][1], 7), (ends[1][0], ends[1][1], -7)]
             else:
                 ends = [(v, c, 0) for v, c in ends]
             for v, col, dy in ends:
-                ax.annotate(f"{v:.0f}%", (x[-1], v), xytext=(6, dy),
+                ax.annotate(f"{v:.1f}%", (x[-1], v), xytext=(6, dy),
                             textcoords="offset points", va="center", fontsize=7,
                             color=col, fontweight="bold")
             if r == 0:
@@ -246,7 +246,8 @@ def depth_trend(scores, out):
         axs[r, -1].text(1.05, 0.5, P.CHEM_LABEL[ch], transform=axs[r, -1].transAxes,
                         rotation=270, ha="left", va="center", fontsize=7.5,
                         fontweight="bold", color=INK)
-    axs[0, 0].set_ylim(0, top * 1.12)
+    for i, t in enumerate(names):
+        axs[0, i].set_ylim(0, tops[t] * 1.12)
     h, l = axs[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="upper center", ncol=2, frameon=False, handlelength=1.6,
                columnspacing=2.4, fontsize=7, bbox_to_anchor=(0.5, 1.0))

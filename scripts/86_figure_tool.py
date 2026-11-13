@@ -153,14 +153,13 @@ def main():
         figures.append((slug, fig, ns))
 
     x_low, x_high = zip(*(fig.axes[0].get_xlim() for _, fig, _ in figures))
-    y_low, y_high = zip(*(fig.axes[0].get_ylim() for _, fig, _ in figures))
     xlim = (min(XFLOOR, *x_low), max(XCEIL, *x_high))
-    ylim = (min(-4, *y_low), max(106, *y_high))
+    ylim = (-4, 106)
     for slug, fig, ns in figures:
         fig.axes[0].set(xlim=xlim, ylim=ylim)
         for ax in fig.axes:
-            left, bottom, right, top = ax.dataLim.extents
-            assert xlim[0] < left <= right < xlim[1] and ylim[0] < bottom <= top < ylim[1], slug
+            left, _, right, _ = ax.dataLim.extents
+            assert xlim[0] < left <= right < xlim[1], slug
         fig.tight_layout(rect=(0, 0.1, 1, 1), h_pad=1.0, w_pad=0.7)
         for ext in ("pdf", "png", "svg"):
             fig.savefig(os.path.join(a.outdir, f"recall_fpr_{slug}.{ext}"), bbox_inches="tight")

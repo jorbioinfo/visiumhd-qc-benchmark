@@ -68,10 +68,6 @@ def main():
         for i, (arm, lab, clr) in enumerate(cols):
             if arm in ad.columns:
                 bars(A, i, ad[arm].to_numpy(), clr)
-                if arm in rs.columns:
-                    A.scatter([i], [rs.loc[ad.index, arm].median()], marker="D", s=16,
-                              facecolor="none", edgecolor="#333333", linewidth=0.9,
-                              zorder=5)
         for i, (arm, lab, clr) in enumerate(ARMS):
             if arm in ad.columns:
                 bars(B, i, (ad[arm] - ad[REF[0]]).to_numpy(), clr)
@@ -88,11 +84,11 @@ def main():
         if last:
             group_labels(A, fig, 1)
             group_labels(B, fig, 0)
-        t = ad.copy(); t.insert(0, "chem", ch); out.append(t)
-    ax[-1, 0].scatter([], [], marker="D", s=16, facecolor="none", edgecolor="#333333",
-                      linewidth=0.9, label="same survivors, second seed (median)")
-    ax[-1, 0].legend(frameon=False, loc="upper center",
-                     bbox_to_anchor=(0.5, -0.27), handletextpad=0.4)
+        t = ad.copy(); t.insert(0, "chem", ch)
+        for arm in [c[0] for c in cols]:
+            if arm in rs.columns:
+                t[f"reseed_{arm}"] = rs.loc[ad.index, arm]
+        out.append(t)
     for x in ax.ravel():
         x.grid(axis="y", lw=0.5, color="#dddddd", zorder=0)
         x.set_axisbelow(True)

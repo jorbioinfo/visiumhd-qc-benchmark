@@ -32,6 +32,15 @@ for s in scripts/63_figure_discarded.py scripts/91_figure_routes.py \
   echo "--- $s"
   py "/work/$s" 2>&1 | tail -3
 done
+demo_sections=(Visium_HD_Human_Colon_Cancer Visium_HD_Human_Kidney_FFPE
+               Visium_HD_Human_Lung_Cancer Visium_HD_3prime_Human_Ovarian_Cancer)
+for section in "${demo_sections[@]}"; do
+  if [[ ! -s "$OUT/demo_downstream/$section.png" ]]; then
+    py /work/scripts/122_demo_downstream_maps.py --sections "$(IFS=,; printf '%s' "${demo_sections[*]}")" || exit 1
+    break
+  fi
+done
+py /work/scripts/146_molecule_curve.py > logs/146_molecule_curve.log || exit 1
 py /work/scripts/compose_figures.py 2>&1 | tail -9
 
 echo

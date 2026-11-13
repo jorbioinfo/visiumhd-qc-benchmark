@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse, glob, os, re
+from importlib.util import module_from_spec, spec_from_file_location
 
 import panel as P
 import numpy as np, pandas as pd
@@ -58,6 +59,17 @@ def order_s4(df):
 
 
 def fig_s4(df, outdir):
+    spec = spec_from_file_location("table1", os.path.join(os.path.dirname(__file__), "127_table1.py"))
+    table = module_from_spec(spec)
+    spec.loader.exec_module(table)
+    labels = []
+    for dataset in df["dataset"]:
+        section = dataset.replace(" ", "_")
+        name = table.label(section)
+        chemistry = P.chemistry(section)
+        preparation = table.prep({"section": section, "chemistry": chemistry})
+        prefix = "3′ " if chemistry == P.POLYA else ""
+        labels.append(f"{prefix}{name}, {preparation}")
     fig, ax = plt.subplots(figsize=(5.2, 0.17 * len(df) + 1.4))
     y = np.arange(len(df)) + (df.chem.to_numpy() == P.POLYA)
     col = {P.PROBE: HUE, P.POLYA: HUE2}
@@ -69,8 +81,7 @@ def fig_s4(df, outdir):
         ax.text(cut, y.max() + 0.65, lab, ha="center", va="bottom",
                 fontsize=6.2, color=MUTED)
     ax.set_yticks(y)
-    ax.set_yticklabels([d.replace("3prime ", "3' ").replace("11mm ", "11 mm ")
-                        for d in df["dataset"]], fontsize=6.8)
+    ax.set_yticklabels(labels, fontsize=6.8)
     ax.set_xlabel("Mitochondrial fraction per 8 µm bin (%)", color=INK)
     ax.tick_params(colors=INK2)
     ax.legend([Patch(color=col[P.PROBE]), Patch(color=col[P.POLYA]),
@@ -99,7 +110,7 @@ ARM_LABEL = {
     "30_miqc_8um": "miQC, native 8 µm", "31_miqc_64um": "miQC + A&P, 64 µm",
     "19_spatialartifacts_8um": "SpatialArtifacts, native 8 µm",
     "20_spatialartifacts_16um": "SpatialArtifacts + A&P, 16 µm",
-    "32_fixedumi_8um": "Fixed count, native 8 µm", "33_fixedumi_64um": "Fixed count + A&P, 64 µm",
+    "32_fixedumi_8um": "Fixed cutoff, native 8 µm", "33_fixedumi_64um": "Fixed cutoff + A&P, 64 µm",
 }
 
 
